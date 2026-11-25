@@ -1,0 +1,36 @@
+name: incident-system
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${INCIDENT_SYSTEM_DATABASE_ADMIN_PASSWORD:?Set INCIDENT_SYSTEM_DATABASE_ADMIN_PASSWORD}
+      POSTGRES_DB: postgres
+      INCIDENT_SYSTEM_DATABASE_USER: ${INCIDENT_SYSTEM_DATABASE_USER:?Set INCIDENT_SYSTEM_DATABASE_USER}
+      INCIDENT_SYSTEM_DATABASE_PASSWORD: ${INCIDENT_SYSTEM_DATABASE_PASSWORD:?Set INCIDENT_SYSTEM_DATABASE_PASSWORD}
+      INCIDENT_SYSTEM_DATABASE_NAME: ${INCIDENT_SYSTEM_DATABASE_NAME:?Set INCIDENT_SYSTEM_DATABASE_NAME}
+    ports:
+      - '127.0.0.1:${INCIDENT_SYSTEM_DATABASE_PORT:-55432}:5432'
+    volumes:
+      - database-data:/var/lib/postgresql
+      - ./infra/database/init.sh:/docker-entrypoint-initdb.d/01-databases.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+  database-check:
+    profiles: ['test']
+    build: .
+    environment:
+      INCIDENT_SYSTEM_DATABASE_HOST: postgres
+      INCIDENT_SYSTEM_DATABASE_PORT: '5432'
+      INCIDENT_SYSTEM_DATABASE_NAME: ${INCIDENT_SYSTEM_DATABASE_NAME:?Set INCIDENT_SYSTEM_DATABASE_NAME}
+      INCIDENT_SYSTEM_DATABASE_USER: ${INCIDENT_SYSTEM_DATABASE_USER:?Set INCIDENT_SYSTEM_DATABASE_USER}
+      INCIDENT_SYSTEM_DATABASE_PASSWORD: ${INCIDENT_SYSTEM_DATABASE_PASSWORD:?Set INCIDENT_SYSTEM_DATABASE_PASSWORD}
+      INCIDENT_SYSTEM_DATABASE_SSL_MODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  database-data:

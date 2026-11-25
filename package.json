@@ -1,0 +1,19 @@
+{
+  "name": "incident-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "dependencies": {
+    "@pgtyped/runtime": "2.4.2",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@pgtyped/cli": "2.4.3",
+    "@types/node": "^22.0.0",
+    "@types/pg": "8.23.1",
+    "typescript": "5.9.3"
+  }
+}

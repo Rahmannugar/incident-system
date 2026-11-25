@@ -1,0 +1,11 @@
+.git
+local
+AGENTS.md
+node_modules
+dist
+bin
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log

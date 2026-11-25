@@ -1,0 +1,15 @@
+{
+  "srcDir": "scripts/database",
+  "transforms": [
+    {
+      "mode": "sql",
+      "include": "incidents.sql",
+      "emitTemplate": "{{dir}}/{{name}}.queries.ts"
+    }
+  ],
+  "failOnError": true,
+  "maxWorkerThreads": 1,
+  "db": {
+    "ssl": false
+  }
+}

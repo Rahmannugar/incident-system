@@ -1,0 +1,71 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  install:
+    desc: Install locked Node dependencies and Tern
+    cmds:
+      - npm ci
+      - task: tools
+
+  tools:
+    desc: Install the pinned Tern migration command
+    status:
+      - test -x bin/tern
+    env:
+      GOBIN: '{{.ROOT_DIR}}/bin'
+    cmds:
+      - go install github.com/jackc/tern/v2@v2.4.3
+
+  db-up:
+    desc: Start PostgreSQL and wait for readiness
+    cmds:
+      - docker compose up -d --wait postgres
+
+  down:
+    desc: Stop containers and retain database data
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: Follow container logs
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}
+
+  migrate:
+    desc: Apply versioned Tern migrations
+    deps: [tools]
+    cmds:
+      - bin/tern migrate -c infra/database/tern.conf -m scripts/database/migrations
+
+  generate:
+    desc: Generate typed queries from the database
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/database/generate.ts
+
+  typecheck:
+    desc: Check TypeScript types
+    cmds:
+      - node node_modules/typescript/bin/tsc --noEmit
+
+  test:
+    desc: Compile and run database tests
+    cmds:
+      - node node_modules/typescript/bin/tsc
+      - node --env-file-if-exists=.env --test dist/proof.test.js
+
+  check:
+    desc: Check TypeScript, database bootstrap syntax, and Compose configuration
+    cmds:
+      - task: typecheck
+      - sh -n infra/database/init.sh
+      - docker compose --profile test config --quiet
+
+  check-integration:
+    desc: Migrate, generate queries, and run database acceptance checks
+    cmds:
+      - task: migrate
+      - task: generate
+      - task: check
+      - task: test
