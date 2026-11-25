@@ -8,7 +8,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "rootDir": "scripts/database",
+    "rootDir": ".",
     "outDir": "dist",
     "types": [
       "node"
@@ -16,6 +16,7 @@
     "rewriteRelativeImportExtensions": true
   },
   "include": [
-    "scripts/database/**/*.ts"
+    "scripts/**/*.ts",
+    "apps/identity/**/*.ts"
   ]
 }

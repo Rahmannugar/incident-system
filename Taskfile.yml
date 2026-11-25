@@ -4,10 +4,11 @@ dotenv: ['.env']
 
 tasks:
   install:
-    desc: Install locked Node dependencies and Tern
+    desc: Install locked Node dependencies and pinned Go tools
     cmds:
       - npm ci --ignore-scripts
       - task: tools
+      - task: proto-tools
 
   tools:
     desc: Install the pinned Tern migration command
@@ -22,6 +23,29 @@ tasks:
     desc: Start PostgreSQL and wait for readiness
     cmds:
       - docker compose up -d --wait postgres
+
+  proto-tools:
+    desc: Install pinned Go protobuf generators
+    status:
+      - test -x bin/protoc-gen-go
+      - test -x bin/protoc-gen-go-grpc
+    env:
+      GOBIN: '{{.ROOT_DIR}}/bin'
+    cmds:
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+
+  proto:
+    desc: Validate protobuf contracts and generate Go and TypeScript code
+    deps: [proto-tools]
+    cmds:
+      - node_modules/.bin/buf lint
+      - node_modules/.bin/buf generate
+
+  provision:
+    desc: Provision missing databases and their non-superuser owners
+    cmds:
+      - docker compose exec -T postgres /bin/sh /docker-entrypoint-initdb.d/01-databases.sh
 
   down:
     desc: Stop containers and retain database data
@@ -38,9 +62,23 @@ tasks:
     deps: [tools]
     cmds:
       - bin/tern migrate -c infra/database/tern.conf -m scripts/database/migrations
+      - bin/tern migrate -c apps/identity/tern.conf -m apps/identity/src/auth/migrations
+
+  migrate:database:
+    desc: Apply SQL acceptance schema migrations
+    deps: [tools]
+    cmds:
+      - bin/tern migrate -c infra/database/tern.conf -m scripts/database/migrations
 
   generate:
     desc: Generate typed queries from the database
+    cmds:
+      - task: proto
+      - task: generate:database
+      - node --experimental-strip-types --env-file-if-exists=.env apps/identity/scripts/generate.ts
+
+  generate:database:
+    desc: Generate SQL acceptance query types
     cmds:
       - node --experimental-strip-types --env-file-if-exists=.env scripts/database/generate.ts
 
@@ -50,15 +88,35 @@ tasks:
       - node node_modules/typescript/bin/tsc --noEmit
 
   test:
-    desc: Compile and run database tests
+    desc: Compile and run persistence and authentication integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test dist/proof.test.js
+      - node --env-file-if-exists=.env --test dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js
+
+  build:
+    desc: Compile TypeScript and the Gateway
+    cmds:
+      - node node_modules/typescript/bin/tsc
+      - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
+
+  run-identity:
+    desc: Run the compiled Identity service
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts identity
+
+  run-gateway:
+    desc: Run the compiled Gateway
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts gateway
 
   check:
-    desc: Check TypeScript, database bootstrap syntax, and Compose configuration
+    desc: Check TypeScript, Go, protobuf contracts, bootstrap, and Compose configuration
     cmds:
       - task: typecheck
+      - go -C packages/contracts test ./...
+      - go -C apps/gateway test ./...
+      - go -C apps/gateway vet ./...
+      - node_modules/.bin/buf lint
       - sh -n infra/database/init.sh
       - docker compose --profile test config --quiet
 
@@ -66,7 +124,17 @@ tasks:
     desc: Start PostgreSQL, migrate, generate queries, and run database checks
     cmds:
       - task: db-up
+      - task: provision
       - task: migrate
       - task: generate
+      - task: build
       - task: check
       - task: test
+
+  check-database:
+    desc: Run SQL acceptance checks against an already running database
+    cmds:
+      - task: migrate:database
+      - task: generate:database
+      - node node_modules/typescript/bin/tsc -p scripts/database/tsconfig.json
+      - node --env-file-if-exists=.env --test dist/scripts/database/proof.test.js

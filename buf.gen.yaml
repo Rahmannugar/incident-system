@@ -1,0 +1,17 @@
+version: v2
+plugins:
+  - local: bin/protoc-gen-go
+    out: packages/contracts/gen/go
+    opt: [paths=source_relative]
+  - local: bin/protoc-gen-go-grpc
+    out: packages/contracts/gen/go
+    opt: [paths=source_relative]
+  - local: node_modules/.bin/protoc-gen-ts_proto
+    out: apps/identity/src/generated
+    opt:
+      - outputServices=grpc-js
+      - env=node
+      - esModuleInterop=true
+      - outputJsonMethods=false
+      - forceLong=number
+      - importSuffix=.js

@@ -5,10 +5,11 @@ RUN CGO_ENABLED=0 GOBIN=/tools go install github.com/go-task/task/v3/cmd/task@v3
 FROM node:22.22.0-bookworm-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY apps/identity/package.json ./apps/identity/package.json
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY --from=tools /tools/tern ./bin/tern
 COPY --from=tools /tools/task /usr/local/bin/task
 COPY Taskfile.yml tsconfig.json ./
 COPY infra/database ./infra/database
 COPY scripts/database ./scripts/database
-CMD ["task", "check-integration"]
+CMD ["task", "check-database"]

@@ -14,7 +14,9 @@
     "@pgtyped/cli": "2.4.3",
     "@types/node": "^22.0.0",
     "@types/pg": "8.23.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@bufbuild/buf": "1.75.0",
+    "ts-proto": "2.23.9"
   },
   "overrides": {
     "@pgtyped/cli": {
@@ -22,5 +24,8 @@
       "minimatch": "11.0.9",
       "tinypool": "2.2.0"
     }
-  }
+  },
+  "workspaces": [
+    "apps/identity"
+  ]
 }

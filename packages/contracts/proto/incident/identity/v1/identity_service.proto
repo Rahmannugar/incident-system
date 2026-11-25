@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package incident.identity.v1;
+
+option go_package = "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1;identityv1";
+
+service IdentityService {
+  rpc SignUp(SignUpRequest) returns (SignUpResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+}
+
+message SignUpRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message SignUpResponse {
+  User user = 1;
+  string token = 2;
+  int64 expires_at_unix = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+  string token = 2;
+  int64 expires_at_unix = 3;
+}
+
+message GetSessionRequest {
+  string token = 1;
+}
+
+message GetSessionResponse {
+  User user = 1;
+  int64 expires_at_unix = 2;
+}
+
+message CheckHealthRequest {}
+message CheckHealthResponse {
+  bool healthy = 1;
+}

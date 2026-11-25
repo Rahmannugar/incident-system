@@ -1,0 +1,7 @@
+{
+  "srcDir": "apps/identity/src/auth",
+  "transforms": [{"mode": "sql", "include": "auth.sql", "emitTemplate": "{{dir}}/{{name}}.queries.ts"}],
+  "failOnError": true,
+  "maxWorkerThreads": 1,
+  "db": {"ssl": false}
+}
