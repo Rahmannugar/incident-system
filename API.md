@@ -28,10 +28,18 @@ Reserve the stored item for an owned pending order; retries reuse the same reser
 Read an owned order's reservation, including its expiry and state.
 `GET /orders/{id}/reservation`
 
+## Payments
+
+Initiate payment for an owned reserved order; retries return its existing attempt.
+`POST /orders/{id}/payment`
+
+Read the owned order's payment status and quoted amount.
+`GET /orders/{id}/payment`
+
 ## Health
 
 Check whether the Gateway process is serving requests.
 `GET /health/live`
 
-Check whether Gateway can reach Identity, Order, Inventory and their backing stores.
+Check whether Gateway can reach Identity, Order, Inventory, Payment and their backing stores.
 `GET /health/ready`

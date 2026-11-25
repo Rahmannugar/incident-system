@@ -15,6 +15,7 @@ import (
 	identityv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1"
 	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
+	paymentv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/payment/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -25,6 +26,7 @@ type API struct {
 	orders         orderv1.OrderServiceClient
 	inventory      inventoryv1.InventoryServiceClient
 	inventoryToken string
+	payments       paymentv1.PaymentServiceClient
 	timeout        time.Duration
 	logger         *slog.Logger
 }
@@ -47,10 +49,12 @@ type failure struct {
 	Message string `json:"message"`
 }
 
-func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, inventory inventoryv1.InventoryServiceClient, inventoryToken string, timeout time.Duration, logger *slog.Logger) http.Handler {
-	api := &API{client: client, orders: orders, inventory: inventory, inventoryToken: inventoryToken, timeout: timeout, logger: logger}
+func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, inventory inventoryv1.InventoryServiceClient, inventoryToken string, payments paymentv1.PaymentServiceClient, timeout time.Duration, logger *slog.Logger) http.Handler {
+	api := &API{client: client, orders: orders, inventory: inventory, inventoryToken: inventoryToken, payments: payments, timeout: timeout, logger: logger}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /orders", api.createOrder)
+	mux.HandleFunc("POST /orders/{id}/payment", api.initiatePayment)
+	mux.HandleFunc("GET /orders/{id}/payment", api.getPayment)
 	mux.HandleFunc("POST /orders/{id}/reservation", api.reserveOrder)
 	mux.HandleFunc("GET /orders/{id}/reservation", api.getReservation)
 	mux.HandleFunc("GET /orders/{id}", api.getOrder)
@@ -142,6 +146,9 @@ func (a *API) callContext(r *http.Request) (context.Context, context.CancelFunc)
 func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation string, err error) {
 	code, name, message := http.StatusInternalServerError, "internal_error", "An internal error occurred"
 	dependency := "Identity"
+	if strings.HasPrefix(operation, "payment.") {
+		dependency = "Payment"
+	}
 	if strings.HasPrefix(operation, "inventory.") {
 		dependency = "Inventory"
 	}
@@ -155,6 +162,9 @@ func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation strin
 		code, name, message = 404, "order_not_found", "Order not found"
 		if dependency == "Inventory" {
 			name, message = "inventory_not_found", "Stock or reservation not found"
+		}
+		if dependency == "Payment" {
+			name, message = "payment_not_found", "Order or payment not found"
 		}
 	case codes.Aborted:
 		code, name, message = 409, "insufficient_stock", "Insufficient stock for this reservation"
@@ -296,6 +306,15 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 	}
 	if !inventoryHealth.GetHealthy() {
 		reject(w, 503, "service_unavailable", "Inventory service is unavailable")
+		return
+	}
+	paymentHealth, err := a.payments.CheckHealth(ctx, &paymentv1.CheckHealthRequest{})
+	if err != nil {
+		a.rpcFailure(w, r, "payment.health", err)
+		return
+	}
+	if !paymentHealth.GetHealthy() {
+		reject(w, 503, "service_unavailable", "Payment service is unavailable")
 		return
 	}
 	write(w, 200, map[string]string{"status": "ok"})

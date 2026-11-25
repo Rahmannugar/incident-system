@@ -1,0 +1,15 @@
+{
+  "srcDir": "apps/payment/src/payments",
+  "transforms": [
+    {
+      "mode": "sql",
+      "include": "payments.sql",
+      "emitTemplate": "{{dir}}/{{name}}.queries.ts"
+    }
+  ],
+  "failOnError": true,
+  "maxWorkerThreads": 1,
+  "db": {
+    "ssl": false
+  }
+}

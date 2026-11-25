@@ -74,6 +74,7 @@ tasks:
       - bin/tern migrate -c infra/database/tern.conf -m scripts/database/migrations
       - bin/tern migrate -c apps/identity/tern.conf -m apps/identity/src/auth/migrations
       - bin/tern migrate -c apps/order/tern.conf -m apps/order/internal/orders/migrations
+      - bin/tern migrate -c apps/payment/tern.conf -m apps/payment/src/payments/migrations
 
   migrate:database:
     desc: Apply SQL acceptance schema migrations
@@ -87,6 +88,7 @@ tasks:
       - task: proto
       - task: generate:database
       - node --experimental-strip-types --env-file-if-exists=.env apps/identity/scripts/generate.ts
+      - node --experimental-strip-types --env-file-if-exists=.env apps/payment/scripts/generate.ts
       - task: generate:order
 
   generate:order:
@@ -114,7 +116,7 @@ tasks:
     desc: Compile and run persistence and service integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js
+      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js dist/apps/payment/test/payment.integration.test.js
 
   build:
     desc: Compile TypeScript and Go services
@@ -123,6 +125,16 @@ tasks:
       - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
       - go -C apps/order build -o ../../bin/order ./cmd/order
       - go -C apps/inventory build -o ../../bin/inventory ./cmd/inventory
+
+  run-payment:
+    desc: Run Payment gRPC and provider webhook listeners
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts payment
+
+  payment-simulate:
+    desc: Submit a signed simulated provider outcome to Payment
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env apps/payment/scripts/simulate.ts {{.CLI_ARGS}}
 
   run-inventory:
     desc: Run the compiled Inventory service

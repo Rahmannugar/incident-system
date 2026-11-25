@@ -20,6 +20,7 @@
     "apps/identity/**/*.ts",
     "apps/order/test/**/*.ts",
     "apps/inventory/test/**/*.ts",
-    "packages/contracts/gen/ts/**/*.ts"
+    "packages/contracts/gen/ts/**/*.ts",
+    "apps/payment/**/*.ts"
   ]
 }

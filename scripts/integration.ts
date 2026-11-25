@@ -13,7 +13,7 @@ export interface Running {
   exited: Promise<{code: number | null; signal: NodeJS.Signals | null}>;
 }
 
-export async function start(service: ServiceName, env: NodeJS.ProcessEnv, children: Running[]): Promise<{process: Running; address: string}> {
+export async function start(service: ServiceName, env: NodeJS.ProcessEnv, children: Running[]): Promise<{process: Running; address: string; httpAddress?: string}> {
   const settings = service === 'identity'
     ? {INCIDENT_SYSTEM_IDENTITY_AUTH_CONCURRENCY: '4', INCIDENT_SYSTEM_IDENTITY_SESSION_TTL_SECONDS: '604800', ...env}
     : {INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '3s', INCIDENT_SYSTEM_ORDER_RPC_TIMEOUT: '3s', ...env};
@@ -38,6 +38,9 @@ export async function start(service: ServiceName, env: NodeJS.ProcessEnv, childr
         let parsed: unknown;
         try { parsed = JSON.parse(line); } catch { continue; }
         const record = object(parsed);
+        if (service === 'payment' && record.event === 'payment.started' && typeof record.port === 'number' && typeof record.http_port === 'number') {
+          clearTimeout(timer); resolve({process: running, address: `127.0.0.1:${record.port}`, httpAddress: `127.0.0.1:${record.http_port}`});
+        }
         if (service === 'identity' && record.event === 'identity.started' && typeof record.port === 'number') {
           clearTimeout(timer); resolve({process: running, address: `127.0.0.1:${record.port}`});
         }
