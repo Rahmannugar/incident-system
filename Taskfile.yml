@@ -105,18 +105,39 @@ tasks:
     cmds:
       - node node_modules/typescript/bin/tsc --noEmit
 
+  test-inventory:
+    desc: Verify reservation concurrency and expiry against configured Upstash Redis
+    cmds:
+      - go -C apps/inventory test -tags=integration -count=1 -timeout=60s ./internal/inventory
+
   test:
-    desc: Compile and run persistence, authentication and order integration tests
+    desc: Compile and run persistence and service integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js
+      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js
 
   build:
-    desc: Compile TypeScript, Gateway and Order
+    desc: Compile TypeScript and Go services
     cmds:
       - node node_modules/typescript/bin/tsc
       - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
       - go -C apps/order build -o ../../bin/order ./cmd/order
+      - go -C apps/inventory build -o ../../bin/inventory ./cmd/inventory
+
+  run-inventory:
+    desc: Run the compiled Inventory service
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts inventory
+
+  inventory-seed:
+    desc: Seed missing stock without changing an existing SKU
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts inventory seed {{.CLI_ARGS}}
+
+  inventory-reset:
+    desc: Reset one SKU and invalidate its reservations and idempotency history
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts inventory reset {{.CLI_ARGS}}
 
   run-order:
     desc: Run the compiled Order service
@@ -142,6 +163,7 @@ tasks:
       - go -C apps/gateway vet ./...
       - go -C apps/order test ./...
       - go -C apps/order vet ./...
+      - go -C apps/inventory vet ./...
       - node_modules/.bin/buf lint
       - sh -n infra/database/init.sh
       - docker compose --profile test config --quiet
@@ -156,6 +178,7 @@ tasks:
       - task: build
       - task: check
       - task: test
+      - task: test-inventory
 
   check-database:
     desc: Run SQL acceptance checks against an already running database

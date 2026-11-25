@@ -2,12 +2,14 @@ import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 
-export type ServiceName = 'identity' | 'gateway' | 'order';
+export type ServiceName = 'identity' | 'gateway' | 'order' | 'inventory';
 
 export function serviceEnvironment(service: ServiceName, overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const source = {...process.env, ...overrides};
   const env: NodeJS.ProcessEnv = {};
   const shared = new Set(['PATH', 'TZ', 'LANG']);
+  if (service !== 'identity') shared.add('GODEBUG');
+  if (service === 'gateway') shared.add('INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN');
   if (service === 'identity' || service === 'order') {
     for (const name of ['HOST', 'PORT', 'SSL_MODE']) shared.add(`INCIDENT_SYSTEM_DATABASE_${name}`);
   }
@@ -20,7 +22,7 @@ export function serviceEnvironment(service: ServiceName, overrides: NodeJS.Proce
 
 function run(service: ServiceName): void {
   const command = service === 'identity' ? process.execPath : resolve(`bin/${service}`);
-  const args = service === 'identity' ? ['dist/apps/identity/src/main.js'] : [];
+  const args = service === 'identity' ? ['dist/apps/identity/src/main.js'] : process.argv.slice(3);
   const child = spawn(command, args, {stdio: 'inherit', env: serviceEnvironment(service)});
   let stopping = false;
   const stop = (signal: NodeJS.Signals) => {
@@ -36,6 +38,6 @@ function run(service: ServiceName): void {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const service = process.argv[2];
-  if (service !== 'identity' && service !== 'gateway' && service !== 'order') throw new Error('Choose identity, gateway, or order');
+  if (service !== 'identity' && service !== 'gateway' && service !== 'order' && service !== 'inventory') throw new Error('Choose identity, gateway, order, or inventory');
   run(service);
 }

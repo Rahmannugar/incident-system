@@ -22,10 +22,16 @@ Create a pending single-item order using an Authorization bearer token.
 Read an order owned by the authenticated caller.
 `GET /orders/{id}`
 
+Reserve the stored item for an owned pending order; retries reuse the same reservation.
+`POST /orders/{id}/reservation`
+
+Read an owned order's reservation, including its expiry and state.
+`GET /orders/{id}/reservation`
+
 ## Health
 
 Check whether the Gateway process is serving requests.
 `GET /health/live`
 
-Check whether Gateway can reach Identity, Order and their databases.
+Check whether Gateway can reach Identity, Order, Inventory and their backing stores.
 `GET /health/ready`

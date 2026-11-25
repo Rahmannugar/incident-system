@@ -33,7 +33,8 @@ test('HTTP Gateway → gRPC Order → PostgreSQL ownership, persistence and fail
     assert.equal(serviceEnvironment('gateway').INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD, undefined);
     const identity = await start('identity', {INCIDENT_SYSTEM_IDENTITY_GRPC_ADDRESS: '127.0.0.1:0'}, children);
     let order = await start('order', {INCIDENT_SYSTEM_ORDER_GRPC_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_ORDER_IDENTITY_ADDRESS: identity.address}, children);
-    const gatewaySettings = {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address};
+    const inventory = await start('inventory', {INCIDENT_SYSTEM_INVENTORY_GRPC_ADDRESS: '127.0.0.1:0'}, children);
+    const gatewaySettings = {INCIDENT_SYSTEM_GATEWAY_INVENTORY_ADDRESS: inventory.address, INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address};
     const gateway = await start('gateway', gatewaySettings, children);
     const base = `http://${gateway.address}`;
     async function request(path: string, body?: unknown, token?: string, requestID?: string, url = base) {

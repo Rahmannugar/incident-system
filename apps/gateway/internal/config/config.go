@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -9,10 +10,12 @@ import (
 )
 
 type Config struct {
-	HTTPAddress     string
-	IdentityAddress string
-	OrderAddress    string
-	RPCTimeout      time.Duration
+	HTTPAddress      string
+	IdentityAddress  string
+	OrderAddress     string
+	InventoryAddress string
+	InventoryToken   string
+	RPCTimeout       time.Duration
 }
 
 func env(name, fallback string) string {
@@ -23,8 +26,11 @@ func env(name, fallback string) string {
 }
 
 func Load() (Config, error) {
-	c := Config{HTTPAddress: env("INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS", "127.0.0.1:8080"), OrderAddress: env("INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS", "127.0.0.1:50052"), IdentityAddress: env("INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS", "127.0.0.1:50051")}
-	for name, address := range map[string]string{"INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS": c.OrderAddress, "INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS": c.HTTPAddress, "INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS": c.IdentityAddress} {
+	c := Config{InventoryAddress: env("INCIDENT_SYSTEM_GATEWAY_INVENTORY_ADDRESS", "127.0.0.1:50053"), InventoryToken: os.Getenv("INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN"), HTTPAddress: env("INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS", "127.0.0.1:8080"), OrderAddress: env("INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS", "127.0.0.1:50052"), IdentityAddress: env("INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS", "127.0.0.1:50051")}
+	if len(c.InventoryToken) < 32 {
+		return c, errors.New("INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN must contain at least 32 characters")
+	}
+	for name, address := range map[string]string{"INCIDENT_SYSTEM_GATEWAY_INVENTORY_ADDRESS": c.InventoryAddress, "INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS": c.OrderAddress, "INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS": c.HTTPAddress, "INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS": c.IdentityAddress} {
 		_, port, err := net.SplitHostPort(address)
 		n, parseErr := strconv.Atoi(port)
 		if err != nil || parseErr != nil || n < 0 || n > 65535 {

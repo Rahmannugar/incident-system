@@ -14,6 +14,7 @@ import (
 	"github.com/Rahmannugar/incident-system/apps/gateway/internal/config"
 	"github.com/Rahmannugar/incident-system/apps/gateway/internal/gateway"
 	identityv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1"
+	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -34,11 +35,16 @@ func run(logger *slog.Logger) error {
 		return errors.New("initialize order client")
 	}
 	defer orderConnection.Close()
+	inventoryConnection, err := grpc.NewClient(cfg.InventoryAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return errors.New("initialize inventory client")
+	}
+	defer inventoryConnection.Close()
 	listener, err := net.Listen("tcp", cfg.HTTPAddress)
 	if err != nil {
 		return errors.New("bind gateway listener")
 	}
-	server := &http.Server{Handler: gateway.New(identityv1.NewIdentityServiceClient(connection), orderv1.NewOrderServiceClient(orderConnection), cfg.RPCTimeout, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 8192}
+	server := &http.Server{Handler: gateway.New(identityv1.NewIdentityServiceClient(connection), orderv1.NewOrderServiceClient(orderConnection), inventoryv1.NewInventoryServiceClient(inventoryConnection), cfg.InventoryToken, cfg.RPCTimeout, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 8192}
 	stopped := make(chan error, 1)
 	go func() { stopped <- server.Serve(listener) }()
 	logger.Info("gateway.started", "service", "gateway", "address", listener.Addr().String())

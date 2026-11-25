@@ -13,6 +13,7 @@ import (
 	"time"
 
 	identityv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1"
+	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -20,10 +21,12 @@ import (
 )
 
 type API struct {
-	client  identityv1.IdentityServiceClient
-	orders  orderv1.OrderServiceClient
-	timeout time.Duration
-	logger  *slog.Logger
+	client         identityv1.IdentityServiceClient
+	orders         orderv1.OrderServiceClient
+	inventory      inventoryv1.InventoryServiceClient
+	inventoryToken string
+	timeout        time.Duration
+	logger         *slog.Logger
 }
 
 type credentials struct {
@@ -44,10 +47,12 @@ type failure struct {
 	Message string `json:"message"`
 }
 
-func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, timeout time.Duration, logger *slog.Logger) http.Handler {
-	api := &API{client: client, orders: orders, timeout: timeout, logger: logger}
+func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, inventory inventoryv1.InventoryServiceClient, inventoryToken string, timeout time.Duration, logger *slog.Logger) http.Handler {
+	api := &API{client: client, orders: orders, inventory: inventory, inventoryToken: inventoryToken, timeout: timeout, logger: logger}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /orders", api.createOrder)
+	mux.HandleFunc("POST /orders/{id}/reservation", api.reserveOrder)
+	mux.HandleFunc("GET /orders/{id}/reservation", api.getReservation)
 	mux.HandleFunc("GET /orders/{id}", api.getOrder)
 	mux.HandleFunc("POST /auth/signup", api.signup)
 	mux.HandleFunc("POST /auth/login", api.login)
@@ -137,6 +142,9 @@ func (a *API) callContext(r *http.Request) (context.Context, context.CancelFunc)
 func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation string, err error) {
 	code, name, message := http.StatusInternalServerError, "internal_error", "An internal error occurred"
 	dependency := "Identity"
+	if strings.HasPrefix(operation, "inventory.") {
+		dependency = "Inventory"
+	}
 	if strings.HasPrefix(operation, "order.") {
 		dependency = "Order"
 	}
@@ -145,15 +153,31 @@ func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation strin
 		code, name, message = 400, "invalid_request", status.Convert(err).Message()
 	case codes.NotFound:
 		code, name, message = 404, "order_not_found", "Order not found"
+		if dependency == "Inventory" {
+			name, message = "inventory_not_found", "Stock or reservation not found"
+		}
+	case codes.Aborted:
+		code, name, message = 409, "insufficient_stock", "Insufficient stock for this reservation"
+	case codes.FailedPrecondition:
+		code, name, message = 409, "reservation_closed", "The reservation has expired or is already closed"
 	case codes.AlreadyExists:
 		code, name, message = 409, "email_exists", "An account with this email already exists"
+		if dependency == "Inventory" {
+			code, name, message = 409, "reservation_conflict", "The order already has a different reservation"
+		}
 	case codes.Unauthenticated:
 		code, name, message = 401, "unauthorized", "A valid session is required"
+		if dependency == "Inventory" {
+			code, name, message = 503, "service_unavailable", "Inventory service is unavailable"
+		}
 		if operation == "auth.login" {
 			name, message = "invalid_credentials", "Email or password is incorrect"
 		}
 	case codes.ResourceExhausted:
 		code, name, message = 429, "auth_busy", "Authentication is busy; retry shortly"
+		if dependency == "Inventory" {
+			name, message = "inventory_busy", "Inventory capacity reached"
+		}
 	case codes.Unavailable:
 		code, name, message = 503, "service_unavailable", dependency+" service is unavailable"
 	case codes.DeadlineExceeded:
@@ -263,6 +287,15 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 	}
 	if !orderHealth.GetHealthy() {
 		reject(w, 503, "service_unavailable", "Order service is unavailable")
+		return
+	}
+	inventoryHealth, err := a.inventory.CheckHealth(ctx, &inventoryv1.CheckHealthRequest{})
+	if err != nil {
+		a.rpcFailure(w, r, "inventory.health", err)
+		return
+	}
+	if !inventoryHealth.GetHealthy() {
+		reject(w, 503, "service_unavailable", "Inventory service is unavailable")
 		return
 	}
 	write(w, 200, map[string]string{"status": "ok"})

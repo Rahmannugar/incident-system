@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package incident.inventory.v1;
+
+option go_package = "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1;inventoryv1";
+
+service InventoryService {
+  rpc CheckStock(CheckStockRequest) returns (CheckStockResponse);
+  rpc Reserve(ReserveRequest) returns (ReserveResponse);
+  rpc GetReservation(GetReservationRequest) returns (GetReservationResponse);
+  rpc Commit(CommitRequest) returns (CommitResponse);
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
+}
+
+message CheckStockRequest { string sku = 1; }
+message CheckStockResponse {
+  string sku = 1;
+  int32 remaining = 2;
+  int32 available = 3;
+}
+message ReserveRequest {
+  string order_id = 1;
+  string sku = 2;
+  int32 quantity = 3;
+}
+message GetReservationRequest {
+  string order_id = 1;
+  string sku = 2;
+}
+message Reservation {
+  string order_id = 1;
+  string sku = 2;
+  int32 quantity = 3;
+  string state = 4;
+  int64 expires_at_unix_ms = 5;
+}
+message ReserveResponse { Reservation reservation = 1; }
+message GetReservationResponse { Reservation reservation = 1; }
+message CommitRequest { string order_id = 1; string sku = 2; }
+message CommitResponse { Reservation reservation = 1; }
+message ReleaseRequest { string order_id = 1; string sku = 2; }
+message ReleaseResponse { Reservation reservation = 1; }
+message CheckHealthRequest {}
+message CheckHealthResponse { bool healthy = 1; }

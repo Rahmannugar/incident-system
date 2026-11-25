@@ -43,7 +43,8 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     assert.equal(serviceEnvironment('identity').INCIDENT_SYSTEM_DATABASE_PASSWORD, undefined);
     const identity = await start('identity', {INCIDENT_SYSTEM_IDENTITY_GRPC_ADDRESS: '127.0.0.1:0'}, children);
     const order = await start('order', {INCIDENT_SYSTEM_ORDER_GRPC_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_ORDER_IDENTITY_ADDRESS: identity.address}, children);
-    const gateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address}, children);
+    const inventory = await start('inventory', {INCIDENT_SYSTEM_INVENTORY_GRPC_ADDRESS: '127.0.0.1:0'}, children);
+    const gateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address, INCIDENT_SYSTEM_GATEWAY_INVENTORY_ADDRESS: inventory.address}, children);
     const base = `http://${gateway.address}`;
     async function request(path: string, body?: unknown, token?: string, requestId?: string) {
       const headers: Record<string, string> = {};
@@ -142,7 +143,7 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     }
     const {rows: [beforeDeadline]} = await pool.query('SELECT count(*)::int AS count FROM identity.sessions WHERE user_id = $1', [registered.user.id]);
 
-    const slowGateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address, INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '120ms'}, children);
+    const slowGateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address, INCIDENT_SYSTEM_GATEWAY_INVENTORY_ADDRESS: inventory.address, INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '120ms'}, children);
     const locker = await pool.connect();
     try {
       await locker.query('BEGIN');
