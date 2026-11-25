@@ -15,5 +15,12 @@
     "@types/node": "^22.0.0",
     "@types/pg": "8.23.1",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@pgtyped/cli": {
+      "glob": "14.0.6",
+      "minimatch": "11.0.9",
+      "tinypool": "2.2.0"
+    }
   }
 }

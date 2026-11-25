@@ -6,7 +6,7 @@ tasks:
   install:
     desc: Install locked Node dependencies and Tern
     cmds:
-      - npm ci
+      - npm ci --ignore-scripts
       - task: tools
 
   tools:
@@ -63,8 +63,9 @@ tasks:
       - docker compose --profile test config --quiet
 
   check-integration:
-    desc: Migrate, generate queries, and run database acceptance checks
+    desc: Start PostgreSQL, migrate, generate queries, and run database checks
     cmds:
+      - task: db-up
       - task: migrate
       - task: generate
       - task: check
