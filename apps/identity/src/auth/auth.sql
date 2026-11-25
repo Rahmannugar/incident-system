@@ -16,3 +16,6 @@ SELECT u.id, u.email, s.expires_at
 FROM identity.sessions s
 JOIN identity.users u ON u.id = s.user_id
 WHERE s.token_hash = :tokenHash! AND s.expires_at > now();
+
+/* @name DeleteSession */
+DELETE FROM identity.sessions WHERE token_hash = :tokenHash!;

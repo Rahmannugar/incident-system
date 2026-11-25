@@ -1,72 +1,14 @@
 import assert from 'node:assert/strict';
-import {spawn, type ChildProcessWithoutNullStreams} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {test} from 'node:test';
 import {Pool} from 'pg';
 import {identityDatabaseConfig} from '../src/config.ts';
 import {databaseConfig} from '../../../scripts/database/database.ts';
-import {serviceEnvironment, type ServiceName} from '../../../scripts/services.ts';
+import {serviceEnvironment} from '../../../scripts/services.ts';
+import {object, start, stop, type Running} from '../../../scripts/integration.ts';
 import {AuthRepository} from '../src/auth/auth.repository.ts';
 import {tokenHash} from '../src/auth/auth.service.ts';
-
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(typeof value === 'object' && value !== null && !Array.isArray(value));
-  return value as Record<string, unknown>;
-}
-
-interface Running {
-  child: ChildProcessWithoutNullStreams;
-  output: string;
-  exited: Promise<{code: number | null; signal: NodeJS.Signals | null}>;
-}
-
-async function start(service: ServiceName, env: NodeJS.ProcessEnv, children: Running[]): Promise<{process: Running; address: string}> {
-  const settings = service === 'identity'
-    ? {INCIDENT_SYSTEM_IDENTITY_AUTH_CONCURRENCY: '4', INCIDENT_SYSTEM_IDENTITY_SESSION_TTL_SECONDS: '3600', ...env}
-    : {INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '3s', ...env};
-  const child = spawn(process.execPath, ['dist/scripts/services.js', service], {env: serviceEnvironment(service, settings)});
-  const exited = new Promise<{code: number | null; signal: NodeJS.Signals | null}>(resolve => {
-    child.once('exit', (code, signal) => resolve({code, signal}));
-    child.once('error', () => resolve({code: 1, signal: null}));
-  });
-  const running: Running = {child, output: '', exited};
-  children.push(running);
-  let pending = '';
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${service} startup timed out`)), 10000);
-    child.stderr.on('data', (data: Buffer) => { running.output += data.toString(); });
-    child.stdout.on('data', (data: Buffer) => {
-      const text = data.toString();
-      running.output += text;
-      pending += text;
-      const lines = pending.split('\n');
-      pending = lines.pop() ?? '';
-      for (const line of lines) {
-        let parsed: unknown;
-        try { parsed = JSON.parse(line); } catch { continue; }
-        const record = object(parsed);
-        if (service === 'identity' && record.event === 'identity.started' && typeof record.port === 'number') {
-          clearTimeout(timer); resolve({process: running, address: `127.0.0.1:${record.port}`});
-        }
-        if (service === 'gateway' && record.msg === 'gateway.started' && typeof record.address === 'string') {
-          clearTimeout(timer); resolve({process: running, address: record.address});
-        }
-      }
-    });
-    void exited.then(() => { clearTimeout(timer); reject(new Error(`${service} exited before startup completed`)); });
-  });
-}
-
-async function stop(process: Running): Promise<void> {
-  if (process.child.exitCode !== null || process.child.signalCode !== null) return;
-  process.child.kill('SIGTERM');
-  const timer = setTimeout(() => process.child.kill('SIGKILL'), 7000);
-  try {
-    const exit = await process.exited;
-    assert.equal(exit.code, 0, 'Service must shut down cleanly');
-  } finally { clearTimeout(timer); }
-}
 
 interface Session {
   user: {id: string; email: string};
@@ -100,7 +42,8 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     assert.equal(serviceEnvironment('identity').INCIDENT_SYSTEM_DATABASE_ADMIN_PASSWORD, undefined);
     assert.equal(serviceEnvironment('identity').INCIDENT_SYSTEM_DATABASE_PASSWORD, undefined);
     const identity = await start('identity', {INCIDENT_SYSTEM_IDENTITY_GRPC_ADDRESS: '127.0.0.1:0'}, children);
-    const gateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address}, children);
+    const order = await start('order', {INCIDENT_SYSTEM_ORDER_GRPC_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_ORDER_IDENTITY_ADDRESS: identity.address}, children);
+    const gateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address}, children);
     const base = `http://${gateway.address}`;
     async function request(path: string, body?: unknown, token?: string, requestId?: string) {
       const headers: Record<string, string> = {};
@@ -133,9 +76,11 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     const registered = readSession(signup.body);
     secrets.push(registered.token);
     assert.equal(registered.user.email, email);
+    const remaining = Date.parse(String(object(signup.body).expires_at)) - Date.now();
+    assert.ok(remaining > 7 * 86400000 - 60000 && remaining <= 7 * 86400000, 'New sessions expire after seven days');
     const {rows: [stored]} = await pool.query('SELECT password_hash FROM identity.users WHERE id = $1', [registered.user.id]);
     assert.equal(stored.password_hash === password, false);
-    assert.match(stored.password_hash, /^scrypt\$32768\$8\$3\$/);
+    assert.match(stored.password_hash, /^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
     const {rows: [persisted]} = await pool.query('SELECT token_hash FROM identity.sessions WHERE user_id = $1', [registered.user.id]);
     assert.equal(persisted.token_hash === registered.token, false);
     assert.equal(persisted.token_hash === tokenHash(registered.token), true);
@@ -197,7 +142,7 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     }
     const {rows: [beforeDeadline]} = await pool.query('SELECT count(*)::int AS count FROM identity.sessions WHERE user_id = $1', [registered.user.id]);
 
-    const slowGateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '120ms'}, children);
+    const slowGateway = await start('gateway', {INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS: '127.0.0.1:0', INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS: identity.address, INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS: order.address, INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '120ms'}, children);
     const locker = await pool.connect();
     try {
       await locker.query('BEGIN');
@@ -223,6 +168,15 @@ test('HTTP Gateway → gRPC Identity → PostgreSQL authentication and failure b
     }
     assert.equal(ready, true, 'Gateway must reconnect after Identity restarts');
     assert.equal((await request('/auth/me', undefined, authenticated.token)).response.status, 200, 'Sessions must survive process restart');
+    assert.equal((await request('/auth/logout', {})).response.status, 401);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const logout = await fetch(base + '/auth/logout', {method: 'POST', headers: {Authorization: `Bearer ${authenticated.token}`}});
+      assert.equal(logout.status, 204);
+    }
+    assert.equal((await request('/auth/me', undefined, authenticated.token)).response.status, 401, 'Logged-out session cannot be reused');
+    const stillActive = await request('/auth/login', {email, password});
+    assert.equal(stillActive.response.status, 200, 'Logout does not remove the account');
+    secrets.push(readSession(stillActive.body).token);
     for (const child of children) await stop(child);
     const logs = children.map(child => child.output).join('\n');
     assert.equal(logs.includes(requestId), true, 'Request ID must propagate to Identity logs');

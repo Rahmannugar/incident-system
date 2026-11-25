@@ -125,3 +125,28 @@ const findSessionIR: any = {"usedParamSet":{"tokenHash":true},"params":[{"name":
 export const findSession = new PreparedQuery<IFindSessionParams,IFindSessionResult>(findSessionIR);
 
 
+/** 'DeleteSession' parameters type */
+export interface IDeleteSessionParams {
+  tokenHash: string;
+}
+
+/** 'DeleteSession' return type */
+export type IDeleteSessionResult = void;
+
+/** 'DeleteSession' query type */
+export interface IDeleteSessionQuery {
+  params: IDeleteSessionParams;
+  result: IDeleteSessionResult;
+}
+
+const deleteSessionIR: any = {"usedParamSet":{"tokenHash":true},"params":[{"name":"tokenHash","required":true,"transform":{"type":"scalar"},"locs":[{"a":49,"b":59}]}],"statement":"DELETE FROM identity.sessions WHERE token_hash = :tokenHash!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * DELETE FROM identity.sessions WHERE token_hash = :tokenHash!
+ * ```
+ */
+export const deleteSession = new PreparedQuery<IDeleteSessionParams,IDeleteSessionResult>(deleteSessionIR);
+
+

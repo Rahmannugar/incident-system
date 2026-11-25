@@ -2,13 +2,13 @@ import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 
-export type ServiceName = 'identity' | 'gateway';
+export type ServiceName = 'identity' | 'gateway' | 'order';
 
 export function serviceEnvironment(service: ServiceName, overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const source = {...process.env, ...overrides};
   const env: NodeJS.ProcessEnv = {};
   const shared = new Set(['PATH', 'TZ', 'LANG']);
-  if (service === 'identity') {
+  if (service === 'identity' || service === 'order') {
     for (const name of ['HOST', 'PORT', 'SSL_MODE']) shared.add(`INCIDENT_SYSTEM_DATABASE_${name}`);
   }
   const prefix = `INCIDENT_SYSTEM_${service.toUpperCase()}_`;
@@ -19,7 +19,7 @@ export function serviceEnvironment(service: ServiceName, overrides: NodeJS.Proce
 }
 
 function run(service: ServiceName): void {
-  const command = service === 'identity' ? process.execPath : resolve('bin/gateway');
+  const command = service === 'identity' ? process.execPath : resolve(`bin/${service}`);
   const args = service === 'identity' ? ['dist/apps/identity/src/main.js'] : [];
   const child = spawn(command, args, {stdio: 'inherit', env: serviceEnvironment(service)});
   let stopping = false;
@@ -36,6 +36,6 @@ function run(service: ServiceName): void {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const service = process.argv[2];
-  if (service !== 'identity' && service !== 'gateway') throw new Error('Choose identity or gateway');
+  if (service !== 'identity' && service !== 'gateway' && service !== 'order') throw new Error('Choose identity, gateway, or order');
   run(service);
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	identityv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1"
+	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -20,6 +21,7 @@ import (
 
 type API struct {
 	client  identityv1.IdentityServiceClient
+	orders  orderv1.OrderServiceClient
 	timeout time.Duration
 	logger  *slog.Logger
 }
@@ -42,11 +44,14 @@ type failure struct {
 	Message string `json:"message"`
 }
 
-func New(client identityv1.IdentityServiceClient, timeout time.Duration, logger *slog.Logger) http.Handler {
-	api := &API{client: client, timeout: timeout, logger: logger}
+func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, timeout time.Duration, logger *slog.Logger) http.Handler {
+	api := &API{client: client, orders: orders, timeout: timeout, logger: logger}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /orders", api.createOrder)
+	mux.HandleFunc("GET /orders/{id}", api.getOrder)
 	mux.HandleFunc("POST /auth/signup", api.signup)
 	mux.HandleFunc("POST /auth/login", api.login)
+	mux.HandleFunc("POST /auth/logout", api.logout)
 	mux.HandleFunc("GET /auth/me", api.me)
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) {
 		write(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -93,15 +98,20 @@ func reject(w http.ResponseWriter, code int, name, message string) {
 
 func decode(w http.ResponseWriter, r *http.Request) (credentials, bool) {
 	var input credentials
+	ok := decodeJSON(w, r, &input, "Expected an email and password JSON object")
+	return input, ok
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, input interface{}, message string) bool {
 	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/json" {
 		reject(w, 415, "unsupported_media_type", "Content-Type must be application/json")
-		return input, false
+		return false
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&input)
+	err = decoder.Decode(input)
 	if err == nil {
 		var extra interface{}
 		if e := decoder.Decode(&extra); e != io.EOF {
@@ -113,11 +123,11 @@ func decode(w http.ResponseWriter, r *http.Request) (credentials, bool) {
 		if errors.As(err, &tooLarge) {
 			reject(w, 413, "body_too_large", "Request body is too large")
 		} else {
-			reject(w, 400, "invalid_request", "Expected an email and password JSON object")
+			reject(w, 400, "invalid_request", message)
 		}
-		return input, false
+		return false
 	}
-	return input, true
+	return true
 }
 
 func (a *API) callContext(r *http.Request) (context.Context, context.CancelFunc) {
@@ -126,9 +136,15 @@ func (a *API) callContext(r *http.Request) (context.Context, context.CancelFunc)
 
 func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation string, err error) {
 	code, name, message := http.StatusInternalServerError, "internal_error", "An internal error occurred"
+	dependency := "Identity"
+	if strings.HasPrefix(operation, "order.") {
+		dependency = "Order"
+	}
 	switch status.Code(err) {
 	case codes.InvalidArgument:
 		code, name, message = 400, "invalid_request", status.Convert(err).Message()
+	case codes.NotFound:
+		code, name, message = 404, "order_not_found", "Order not found"
 	case codes.AlreadyExists:
 		code, name, message = 409, "email_exists", "An account with this email already exists"
 	case codes.Unauthenticated:
@@ -139,9 +155,9 @@ func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation strin
 	case codes.ResourceExhausted:
 		code, name, message = 429, "auth_busy", "Authentication is busy; retry shortly"
 	case codes.Unavailable:
-		code, name, message = 503, "service_unavailable", "Identity service is unavailable"
+		code, name, message = 503, "service_unavailable", dependency+" service is unavailable"
 	case codes.DeadlineExceeded:
-		code, name, message = 504, "upstream_timeout", "Identity service timed out"
+		code, name, message = 504, "upstream_timeout", dependency+" service timed out"
 	case codes.Canceled:
 		if r.Context().Err() != nil {
 			return
@@ -209,11 +225,10 @@ func (a *API) writeSession(w http.ResponseWriter, input *identityv1.User, token 
 }
 
 func (a *API) me(w http.ResponseWriter, r *http.Request) {
-	header := r.Header.Get("Authorization")
-	if !strings.HasPrefix(header, "Bearer ") || len(header) != 50 {
-		reject(w, 401, "unauthorized", "A valid session is required")
+	if !bearerAuthorization(w, r) {
 		return
 	}
+	header := r.Header.Get("Authorization")
 	ctx, cancel := a.callContext(r)
 	defer cancel()
 	result, err := a.client.GetSession(ctx, &identityv1.GetSessionRequest{Token: strings.TrimPrefix(header, "Bearer ")})
@@ -241,5 +256,37 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 		reject(w, 503, "service_unavailable", "Identity service is unavailable")
 		return
 	}
+	orderHealth, err := a.orders.CheckHealth(ctx, &orderv1.CheckHealthRequest{})
+	if err != nil {
+		a.rpcFailure(w, r, "order.health", err)
+		return
+	}
+	if !orderHealth.GetHealthy() {
+		reject(w, 503, "service_unavailable", "Order service is unavailable")
+		return
+	}
 	write(w, 200, map[string]string{"status": "ok"})
+}
+
+func bearerAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	values := r.Header.Values("Authorization")
+	if len(values) != 1 || !strings.HasPrefix(values[0], "Bearer ") || len(values[0]) != 50 {
+		reject(w, 401, "unauthorized", "A valid session is required")
+		return false
+	}
+	return true
+}
+
+func (a *API) logout(w http.ResponseWriter, r *http.Request) {
+	if !bearerAuthorization(w, r) {
+		return
+	}
+	ctx, cancel := a.callContext(r)
+	defer cancel()
+	_, err := a.client.Logout(ctx, &identityv1.LogoutRequest{Token: strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")})
+	if err != nil {
+		a.rpcFailure(w, r, "auth.logout", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

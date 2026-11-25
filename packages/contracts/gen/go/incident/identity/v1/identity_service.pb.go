@@ -473,6 +473,86 @@ func (x *CheckHealthResponse) GetHealthy() bool {
 	return false
 }
 
+type LogoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutRequest) Reset() {
+	*x = LogoutRequest{}
+	mi := &file_incident_identity_v1_identity_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutRequest) ProtoMessage() {}
+
+func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_identity_v1_identity_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
+func (*LogoutRequest) Descriptor() ([]byte, []int) {
+	return file_incident_identity_v1_identity_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *LogoutRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type LogoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutResponse) Reset() {
+	*x = LogoutResponse{}
+	mi := &file_incident_identity_v1_identity_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutResponse) ProtoMessage() {}
+
+func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_identity_v1_identity_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
+func (*LogoutResponse) Descriptor() ([]byte, []int) {
+	return file_incident_identity_v1_identity_service_proto_rawDescGZIP(), []int{10}
+}
+
 var File_incident_identity_v1_identity_service_proto protoreflect.FileDescriptor
 
 const file_incident_identity_v1_identity_service_proto_rawDesc = "" +
@@ -502,10 +582,14 @@ const file_incident_identity_v1_identity_service_proto_rawDesc = "" +
 	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix\"\x14\n" +
 	"\x12CheckHealthRequest\"/\n" +
 	"\x13CheckHealthResponse\x12\x18\n" +
-	"\ahealthy\x18\x01 \x01(\bR\ahealthy2\xfd\x02\n" +
+	"\ahealthy\x18\x01 \x01(\bR\ahealthy\"%\n" +
+	"\rLogoutRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\x10\n" +
+	"\x0eLogoutResponse2\xd2\x03\n" +
 	"\x0fIdentityService\x12S\n" +
 	"\x06SignUp\x12#.incident.identity.v1.SignUpRequest\x1a$.incident.identity.v1.SignUpResponse\x12P\n" +
-	"\x05Login\x12\".incident.identity.v1.LoginRequest\x1a#.incident.identity.v1.LoginResponse\x12_\n" +
+	"\x05Login\x12\".incident.identity.v1.LoginRequest\x1a#.incident.identity.v1.LoginResponse\x12S\n" +
+	"\x06Logout\x12#.incident.identity.v1.LogoutRequest\x1a$.incident.identity.v1.LogoutResponse\x12_\n" +
 	"\n" +
 	"GetSession\x12'.incident.identity.v1.GetSessionRequest\x1a(.incident.identity.v1.GetSessionResponse\x12b\n" +
 	"\vCheckHealth\x12(.incident.identity.v1.CheckHealthRequest\x1a).incident.identity.v1.CheckHealthResponseBbZ`github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1;identityv1b\x06proto3"
@@ -522,7 +606,7 @@ func file_incident_identity_v1_identity_service_proto_rawDescGZIP() []byte {
 	return file_incident_identity_v1_identity_service_proto_rawDescData
 }
 
-var file_incident_identity_v1_identity_service_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_incident_identity_v1_identity_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_incident_identity_v1_identity_service_proto_goTypes = []any{
 	(*User)(nil),                // 0: incident.identity.v1.User
 	(*SignUpRequest)(nil),       // 1: incident.identity.v1.SignUpRequest
@@ -533,24 +617,28 @@ var file_incident_identity_v1_identity_service_proto_goTypes = []any{
 	(*GetSessionResponse)(nil),  // 6: incident.identity.v1.GetSessionResponse
 	(*CheckHealthRequest)(nil),  // 7: incident.identity.v1.CheckHealthRequest
 	(*CheckHealthResponse)(nil), // 8: incident.identity.v1.CheckHealthResponse
+	(*LogoutRequest)(nil),       // 9: incident.identity.v1.LogoutRequest
+	(*LogoutResponse)(nil),      // 10: incident.identity.v1.LogoutResponse
 }
 var file_incident_identity_v1_identity_service_proto_depIdxs = []int32{
-	0, // 0: incident.identity.v1.SignUpResponse.user:type_name -> incident.identity.v1.User
-	0, // 1: incident.identity.v1.LoginResponse.user:type_name -> incident.identity.v1.User
-	0, // 2: incident.identity.v1.GetSessionResponse.user:type_name -> incident.identity.v1.User
-	1, // 3: incident.identity.v1.IdentityService.SignUp:input_type -> incident.identity.v1.SignUpRequest
-	3, // 4: incident.identity.v1.IdentityService.Login:input_type -> incident.identity.v1.LoginRequest
-	5, // 5: incident.identity.v1.IdentityService.GetSession:input_type -> incident.identity.v1.GetSessionRequest
-	7, // 6: incident.identity.v1.IdentityService.CheckHealth:input_type -> incident.identity.v1.CheckHealthRequest
-	2, // 7: incident.identity.v1.IdentityService.SignUp:output_type -> incident.identity.v1.SignUpResponse
-	4, // 8: incident.identity.v1.IdentityService.Login:output_type -> incident.identity.v1.LoginResponse
-	6, // 9: incident.identity.v1.IdentityService.GetSession:output_type -> incident.identity.v1.GetSessionResponse
-	8, // 10: incident.identity.v1.IdentityService.CheckHealth:output_type -> incident.identity.v1.CheckHealthResponse
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: incident.identity.v1.SignUpResponse.user:type_name -> incident.identity.v1.User
+	0,  // 1: incident.identity.v1.LoginResponse.user:type_name -> incident.identity.v1.User
+	0,  // 2: incident.identity.v1.GetSessionResponse.user:type_name -> incident.identity.v1.User
+	1,  // 3: incident.identity.v1.IdentityService.SignUp:input_type -> incident.identity.v1.SignUpRequest
+	3,  // 4: incident.identity.v1.IdentityService.Login:input_type -> incident.identity.v1.LoginRequest
+	9,  // 5: incident.identity.v1.IdentityService.Logout:input_type -> incident.identity.v1.LogoutRequest
+	5,  // 6: incident.identity.v1.IdentityService.GetSession:input_type -> incident.identity.v1.GetSessionRequest
+	7,  // 7: incident.identity.v1.IdentityService.CheckHealth:input_type -> incident.identity.v1.CheckHealthRequest
+	2,  // 8: incident.identity.v1.IdentityService.SignUp:output_type -> incident.identity.v1.SignUpResponse
+	4,  // 9: incident.identity.v1.IdentityService.Login:output_type -> incident.identity.v1.LoginResponse
+	10, // 10: incident.identity.v1.IdentityService.Logout:output_type -> incident.identity.v1.LogoutResponse
+	6,  // 11: incident.identity.v1.IdentityService.GetSession:output_type -> incident.identity.v1.GetSessionResponse
+	8,  // 12: incident.identity.v1.IdentityService.CheckHealth:output_type -> incident.identity.v1.CheckHealthResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_incident_identity_v1_identity_service_proto_init() }
@@ -564,7 +652,7 @@ func file_incident_identity_v1_identity_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_incident_identity_v1_identity_service_proto_rawDesc), len(file_incident_identity_v1_identity_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

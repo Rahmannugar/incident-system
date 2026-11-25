@@ -9,6 +9,7 @@ tasks:
       - npm ci --ignore-scripts
       - task: tools
       - task: proto-tools
+      - task: sqlc-tools
 
   tools:
     desc: Install the pinned Tern migration command
@@ -42,6 +43,15 @@ tasks:
       - node_modules/.bin/buf lint
       - node_modules/.bin/buf generate
 
+  sqlc-tools:
+    desc: Install the pinned SQLC generator
+    status:
+      - test -x bin/sqlc
+    env:
+      GOBIN: '{{.ROOT_DIR}}/bin'
+    cmds:
+      - go install -p 2 github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+
   provision:
     desc: Provision missing databases and their non-superuser owners
     cmds:
@@ -63,6 +73,7 @@ tasks:
     cmds:
       - bin/tern migrate -c infra/database/tern.conf -m scripts/database/migrations
       - bin/tern migrate -c apps/identity/tern.conf -m apps/identity/src/auth/migrations
+      - bin/tern migrate -c apps/order/tern.conf -m apps/order/internal/orders/migrations
 
   migrate:database:
     desc: Apply SQL acceptance schema migrations
@@ -76,6 +87,13 @@ tasks:
       - task: proto
       - task: generate:database
       - node --experimental-strip-types --env-file-if-exists=.env apps/identity/scripts/generate.ts
+      - task: generate:order
+
+  generate:order:
+    desc: Generate Order query adapters with SQLC
+    deps: [sqlc-tools]
+    cmds:
+      - bin/sqlc generate -f apps/order/sqlc.yaml
 
   generate:database:
     desc: Generate SQL acceptance query types
@@ -88,16 +106,22 @@ tasks:
       - node node_modules/typescript/bin/tsc --noEmit
 
   test:
-    desc: Compile and run persistence and authentication integration tests
+    desc: Compile and run persistence, authentication and order integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js
+      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js
 
   build:
-    desc: Compile TypeScript and the Gateway
+    desc: Compile TypeScript, Gateway and Order
     cmds:
       - node node_modules/typescript/bin/tsc
       - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
+      - go -C apps/order build -o ../../bin/order ./cmd/order
+
+  run-order:
+    desc: Run the compiled Order service
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts order
 
   run-identity:
     desc: Run the compiled Identity service
@@ -116,6 +140,8 @@ tasks:
       - go -C packages/contracts test ./...
       - go -C apps/gateway test ./...
       - go -C apps/gateway vet ./...
+      - go -C apps/order test ./...
+      - go -C apps/order vet ./...
       - node_modules/.bin/buf lint
       - sh -n infra/database/init.sh
       - docker compose --profile test config --quiet

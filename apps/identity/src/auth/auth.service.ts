@@ -1,7 +1,7 @@
-import {createHash, randomBytes, randomUUID} from 'node:crypto';
-import {AuthRepository} from './auth.repository.ts';
-import {AuthFailure, type AssertActive, type Session} from './auth.types.ts';
-import {hashPassword, verifyPassword} from './password.ts';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { AuthRepository } from './auth.repository.ts';
+import { AuthFailure, type AssertActive, type Session } from './auth.types.ts';
+import { hashPassword, verifyPassword } from './password.ts';
 
 export function tokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -27,6 +27,7 @@ export class AuthService {
   private inFlight = 0;
   constructor(private readonly repository: AuthRepository, private readonly ttl: number, private readonly limit: number, private readonly dummyHash: string) {}
 
+  // Bound in-flight signup/login work so password hashing cannot exhaust this process.
   private async bounded<T>(work: () => Promise<T>): Promise<T> {
     if (this.inFlight >= this.limit) throw new AuthFailure('overloaded', 'Authentication is busy; retry shortly');
     this.inFlight++;
@@ -62,6 +63,12 @@ export class AuthService {
       const expiresAt = await this.repository.createSession({userId: user.id, tokenHash: tokenHash(token), ttlSeconds: this.ttl});
       return {user: {id: user.id, email: user.email}, token, expiresAt};
     });
+  }
+
+  async logout(token: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new AuthFailure('unauthorized', 'A valid session is required');
+    // Delete only this session; repeated logout is safe and other devices stay signed in.
+    await this.repository.deleteSession(tokenHash(token));
   }
 
   async getSession(token: string) {

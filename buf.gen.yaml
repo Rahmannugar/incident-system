@@ -7,7 +7,7 @@ plugins:
     out: packages/contracts/gen/go
     opt: [paths=source_relative]
   - local: node_modules/.bin/protoc-gen-ts_proto
-    out: apps/identity/src/generated
+    out: packages/contracts/gen/ts
     opt:
       - outputServices=grpc-js
       - env=node

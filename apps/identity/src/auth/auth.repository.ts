@@ -1,5 +1,5 @@
 import type {Pool} from 'pg';
-import {findSession, findUserByEmail, insertSession, insertUser} from './auth.queries.js';
+import {deleteSession, findSession, findUserByEmail, insertSession, insertUser} from './auth.queries.js';
 import type {AssertActive, User} from './auth.types.ts';
 
 interface NewSession {
@@ -42,6 +42,10 @@ export class AuthRepository {
     const [session] = await insertSession.run(input, this.pool);
     if (!session) throw new Error('Session returned no row');
     return session.expires_at;
+  }
+
+  async deleteSession(tokenHash: string): Promise<void> {
+    await deleteSession.run({tokenHash}, this.pool);
   }
 
   async findSession(tokenHash: string) {

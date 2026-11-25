@@ -50,7 +50,7 @@ export function identityConfig() {
   return {
     database: identityDatabaseConfig(),
     address: process.env.INCIDENT_SYSTEM_IDENTITY_GRPC_ADDRESS ?? '127.0.0.1:50051',
-    sessionTtl: integer('INCIDENT_SYSTEM_IDENTITY_SESSION_TTL_SECONDS', 3600, 60, 86400),
+    sessionTtl: integer('INCIDENT_SYSTEM_IDENTITY_SESSION_TTL_SECONDS', 604800, 60, 604800),
     authConcurrency: integer('INCIDENT_SYSTEM_IDENTITY_AUTH_CONCURRENCY', 4, 1, 16),
   };
 }

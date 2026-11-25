@@ -11,6 +11,7 @@ import (
 type Config struct {
 	HTTPAddress     string
 	IdentityAddress string
+	OrderAddress    string
 	RPCTimeout      time.Duration
 }
 
@@ -22,8 +23,8 @@ func env(name, fallback string) string {
 }
 
 func Load() (Config, error) {
-	c := Config{HTTPAddress: env("INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS", "127.0.0.1:8080"), IdentityAddress: env("INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS", "127.0.0.1:50051")}
-	for name, address := range map[string]string{"INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS": c.HTTPAddress, "INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS": c.IdentityAddress} {
+	c := Config{HTTPAddress: env("INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS", "127.0.0.1:8080"), OrderAddress: env("INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS", "127.0.0.1:50052"), IdentityAddress: env("INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS", "127.0.0.1:50051")}
+	for name, address := range map[string]string{"INCIDENT_SYSTEM_GATEWAY_ORDER_ADDRESS": c.OrderAddress, "INCIDENT_SYSTEM_GATEWAY_HTTP_ADDRESS": c.HTTPAddress, "INCIDENT_SYSTEM_GATEWAY_IDENTITY_ADDRESS": c.IdentityAddress} {
 		_, port, err := net.SplitHostPort(address)
 		n, parseErr := strconv.Atoi(port)
 		if err != nil || parseErr != nil || n < 0 || n > 65535 {

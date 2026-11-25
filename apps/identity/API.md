@@ -8,6 +8,9 @@ Create a user and session atomically.
 Verify credentials and create a session.
 `/incident.identity.v1.IdentityService/Login`
 
+Revoke the supplied session token; repeating logout is safe.
+`/incident.identity.v1.IdentityService/Logout`
+
 Validate a session token and return its user and expiry.
 `/incident.identity.v1.IdentityService/GetSession`
 

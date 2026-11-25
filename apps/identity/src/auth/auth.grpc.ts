@@ -1,7 +1,7 @@
 import {status, type handleUnaryCall} from '@grpc/grpc-js';
 import type {Pool} from 'pg';
 import {randomUUID} from 'node:crypto';
-import type {IdentityServiceServer} from '../generated/incident/identity/v1/identity_service.js';
+import type {IdentityServiceServer} from '../../../../packages/contracts/gen/ts/incident/identity/v1/identity_service.js';
 import {log} from '../logger.ts';
 import {AuthFailure, type AssertActive, type FailureCode} from './auth.types.ts';
 import type {AuthService} from './auth.service.ts';
@@ -61,6 +61,10 @@ export function authHandlers(service: AuthService, pool: Pool): IdentityServiceS
     login: unary('auth.login', async (request, active) => {
       const session = await service.login(request.email, request.password, active);
       return {user: session.user, token: session.token, expiresAtUnix: Math.floor(session.expiresAt.getTime() / 1000)};
+    }),
+    logout: unary('auth.logout', async request => {
+      await service.logout(request.token);
+      return {};
     }),
     getSession: unary('auth.session', async request => {
       const session = await service.getSession(request.token);

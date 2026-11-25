@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	IdentityService_SignUp_FullMethodName      = "/incident.identity.v1.IdentityService/SignUp"
 	IdentityService_Login_FullMethodName       = "/incident.identity.v1.IdentityService/Login"
+	IdentityService_Logout_FullMethodName      = "/incident.identity.v1.IdentityService/Logout"
 	IdentityService_GetSession_FullMethodName  = "/incident.identity.v1.IdentityService/GetSession"
 	IdentityService_CheckHealth_FullMethodName = "/incident.identity.v1.IdentityService/CheckHealth"
 )
@@ -31,6 +32,7 @@ const (
 type IdentityServiceClient interface {
 	SignUp(ctx context.Context, in *SignUpRequest, opts ...grpc.CallOption) (*SignUpResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error)
 }
@@ -63,6 +65,16 @@ func (c *identityServiceClient) Login(ctx context.Context, in *LoginRequest, opt
 	return out, nil
 }
 
+func (c *identityServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, IdentityService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *identityServiceClient) GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSessionResponse)
@@ -89,6 +101,7 @@ func (c *identityServiceClient) CheckHealth(ctx context.Context, in *CheckHealth
 type IdentityServiceServer interface {
 	SignUp(context.Context, *SignUpRequest) (*SignUpResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	CheckHealth(context.Context, *CheckHealthRequest) (*CheckHealthResponse, error)
 	mustEmbedUnimplementedIdentityServiceServer()
@@ -106,6 +119,9 @@ func (UnimplementedIdentityServiceServer) SignUp(context.Context, *SignUpRequest
 }
 func (UnimplementedIdentityServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedIdentityServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
 }
 func (UnimplementedIdentityServiceServer) GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSession not implemented")
@@ -170,6 +186,24 @@ func _IdentityService_Login_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IdentityService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IdentityService_GetSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetSessionRequest)
 	if err := dec(in); err != nil {
@@ -220,6 +254,10 @@ var IdentityService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _IdentityService_Login_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _IdentityService_Logout_Handler,
 		},
 		{
 			MethodName: "GetSession",

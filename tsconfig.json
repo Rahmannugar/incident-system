@@ -17,6 +17,8 @@
   },
   "include": [
     "scripts/**/*.ts",
-    "apps/identity/**/*.ts"
+    "apps/identity/**/*.ts",
+    "apps/order/test/**/*.ts",
+    "packages/contracts/gen/ts/**/*.ts"
   ]
 }

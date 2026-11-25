@@ -1,7 +1,7 @@
 import {Server, ServerCredentials} from '@grpc/grpc-js';
 import {randomBytes} from 'node:crypto';
 import {Pool} from 'pg';
-import {IdentityServiceService} from './generated/incident/identity/v1/identity_service.js';
+import {IdentityServiceService} from '../../../packages/contracts/gen/ts/incident/identity/v1/identity_service.js';
 import {ConfigurationError, identityConfig} from './config.ts';
 import {AuthRepository} from './auth/auth.repository.ts';
 import {AuthService} from './auth/auth.service.ts';

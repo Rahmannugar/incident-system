@@ -1,0 +1,12 @@
+# Order gRPC API
+
+Contracts: [order_service.proto](../../packages/contracts/proto/incident/order/v1/order_service.proto).
+
+Create a pending single-item order for the user identified by bearer metadata.
+`/incident.order.v1.OrderService/CreateOrder`
+
+Read an order owned by the user identified by bearer metadata.
+`/incident.order.v1.OrderService/GetOrder`
+
+Check Order database and Identity availability.
+`/incident.order.v1.OrderService/CheckHealth`

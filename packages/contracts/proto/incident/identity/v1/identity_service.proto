@@ -7,6 +7,7 @@ option go_package = "github.com/Rahmannugar/incident-system/packages/contracts/g
 service IdentityService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
   rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
 }
@@ -51,3 +52,9 @@ message CheckHealthRequest {}
 message CheckHealthResponse {
   bool healthy = 1;
 }
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message LogoutResponse {}
