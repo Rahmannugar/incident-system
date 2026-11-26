@@ -19,9 +19,9 @@ async function main() {
   const server = new Server({'grpc.max_receive_message_length': 4096, 'grpc.max_concurrent_streams': 64});
   const http = providerServer(repository, config.secret, config.timeoutMs);
   try {
-    await pool.query('SELECT id FROM payments.attempts LIMIT 0');
+    await pool.query('SELECT payment_id FROM payments.refunds LIMIT 0');
     const service = new PaymentService(repository, orders, inventory, config.serviceToken, config.unitAmount, config.currency);
-    server.addService(PaymentServiceService, paymentHandlers(service, pool, config.timeoutMs));
+    server.addService(PaymentServiceService, paymentHandlers(service, pool, config.timeoutMs, config.settlementToken));
     const port = await new Promise<number>((resolve, reject) => server.bindAsync(config.grpcAddress, ServerCredentials.createInsecure(), (error, value) => error ? reject(error) : resolve(value)));
     const address = new URL(`http://${config.httpAddress}`);
     await new Promise<void>((resolve, reject) => {http.once('error', reject); http.listen(Number(config.httpAddress.slice(config.httpAddress.lastIndexOf(':') + 1)), address.hostname.replace(/^\[|\]$/g, ''), resolve);});

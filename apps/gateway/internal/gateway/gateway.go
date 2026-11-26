@@ -22,6 +22,9 @@ import (
 )
 
 type API struct {
+	events         EventConfig
+	settlements    *SettlementService
+	deliveries     chan struct{}
 	client         identityv1.IdentityServiceClient
 	orders         orderv1.OrderServiceClient
 	inventory      inventoryv1.InventoryServiceClient
@@ -49,9 +52,10 @@ type failure struct {
 	Message string `json:"message"`
 }
 
-func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, inventory inventoryv1.InventoryServiceClient, inventoryToken string, payments paymentv1.PaymentServiceClient, timeout time.Duration, logger *slog.Logger) http.Handler {
-	api := &API{client: client, orders: orders, inventory: inventory, inventoryToken: inventoryToken, payments: payments, timeout: timeout, logger: logger}
+func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceClient, inventory inventoryv1.InventoryServiceClient, inventoryToken string, payments paymentv1.PaymentServiceClient, timeout time.Duration, logger *slog.Logger, events EventConfig) http.Handler {
+	api := &API{client: client, orders: orders, inventory: inventory, inventoryToken: inventoryToken, payments: payments, timeout: timeout, logger: logger, events: events, settlements: &SettlementService{orders: orders, inventory: inventory, payments: payments, inventoryToken: inventoryToken, orderToken: events.OrderToken, paymentToken: events.PaymentToken}, deliveries: make(chan struct{}, 16)}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /events/payment", api.paymentEvent)
 	mux.HandleFunc("POST /orders", api.createOrder)
 	mux.HandleFunc("POST /orders/{id}/payment", api.initiatePayment)
 	mux.HandleFunc("GET /orders/{id}/payment", api.getPayment)

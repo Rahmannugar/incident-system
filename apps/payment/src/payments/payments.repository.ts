@@ -2,10 +2,44 @@ import {randomUUID} from 'node:crypto';
 import type {Pool} from 'pg';
 import {findPayment, insertPayment, lockPayment, findProviderEvent, recordProviderEvent, finalizePayment, insertOutcome, wakePublisher, type IFindPaymentResult, type IInsertPaymentParams} from './payments.queries.js';
 import {PaymentFailure, type AssertActive, type ProviderEvent} from './payments.types.ts';
+import {findRefund, insertRefund} from './refunds.queries.js';
+import {simulateFullRefund} from './refund-provider.ts';
 
 export class PaymentRepository {
   constructor(private readonly pool: Pool) {}
   async find(orderId: string) {const [payment] = await findPayment.run({orderId}, this.pool); return payment;}
+  async settlement(orderId: string) {
+    const payment = await this.find(orderId);
+    if (!payment) throw new PaymentFailure('not_found', 'Payment attempt not found');
+    const [refund] = await findRefund.run({paymentId: payment.id}, this.pool);
+    return {payment, refund};
+  }
+  async refund(paymentId: string, orderId: string, active: AssertActive) {
+    const client = await this.pool.connect();
+    let discard = false;
+    try {
+      await client.query('BEGIN');
+      active();
+      // Share the provider-outcome lock so a refund cannot race a pending charge.
+      // The payment key, not a delivery ID, deduplicates concurrent refund requests.
+      const [payment] = await lockPayment.run({paymentId}, client);
+      if (!payment || payment.order_id !== orderId) throw new PaymentFailure('not_found', 'Payment attempt not found');
+      if (payment.status !== 'succeeded') throw new PaymentFailure('not_refundable', 'Only a successful payment can be refunded');
+      let [refund] = await findRefund.run({paymentId}, client);
+      if (!refund) {
+        const providerReference = simulateFullRefund(payment);
+        await insertRefund.run({paymentId, providerReference}, client);
+        [refund] = await findRefund.run({paymentId}, client);
+      }
+      if (!refund) throw new Error('Refund insertion returned no row');
+      active();
+      await client.query('COMMIT');
+      return refund;
+    } catch (error) {
+      try {await client.query('ROLLBACK');} catch {discard = true;}
+      throw error;
+    } finally {client.release(discard);}
+  }
   async create(input: IInsertPaymentParams, active: AssertActive): Promise<IFindPaymentResult> {
     const client = await this.pool.connect();
     let discard = false;

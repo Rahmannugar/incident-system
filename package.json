@@ -11,12 +11,13 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
+    "@bufbuild/buf": "1.75.0",
     "@pgtyped/cli": "2.4.3",
     "@types/node": "^22.0.0",
     "@types/pg": "8.23.1",
-    "typescript": "5.9.3",
-    "@bufbuild/buf": "1.75.0",
-    "ts-proto": "2.23.9"
+    "@upstash/qstash": "2.13.0",
+    "ts-proto": "2.23.9",
+    "typescript": "5.9.3"
   },
   "overrides": {
     "@pgtyped/cli": {

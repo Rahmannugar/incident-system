@@ -10,6 +10,12 @@ Create one pending attempt for an owned pending order with a live reservation; r
 Read the payment attempt after checking order ownership through Order.
 `/incident.payment.v1.PaymentService/GetPayment`
 
+Read the canonical attempt and any completed refund using a Payment service credential.
+`/incident.payment.v1.PaymentService/GetPaymentForSettlement`
+
+Complete one simulated full refund for a successful payment; retries return the same completion. Requires the Payment service credential and matching payment/order IDs.
+`/incident.payment.v1.PaymentService/RefundPayment`
+
 Check Payment database connectivity.
 `/incident.payment.v1.PaymentService/CheckHealth`
 

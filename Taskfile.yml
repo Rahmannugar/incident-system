@@ -116,7 +116,7 @@ tasks:
     desc: Compile and run persistence and service integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js dist/apps/payment/test/payment.integration.test.js
+      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js dist/apps/payment/test/payment.integration.test.js dist/apps/payment/test/outbox.integration.test.js dist/apps/payment/test/refund.integration.test.js dist/apps/gateway/test/settlement.integration.test.js
 
   build:
     desc: Compile TypeScript and Go services
@@ -125,6 +125,28 @@ tasks:
       - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
       - go -C apps/order build -o ../../bin/order ./cmd/order
       - go -C apps/inventory build -o ../../bin/inventory ./cmd/inventory
+
+  qstash-local:
+    desc: Start the QStash development container
+    cmds:
+      - docker compose up -d qstash
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/qstash.ts
+
+  qstash-stop:
+    desc: Stop the QStash development container
+    cmds:
+      - docker compose stop qstash
+
+  check-qstash-local:
+    desc: Verify signed delivery and retry using the real QStash development server
+    cmds:
+      - node node_modules/typescript/bin/tsc
+      - node --env-file-if-exists=.env --test dist/scripts/qstash.integration.test.js
+
+  run-payment-publisher:
+    desc: Publish leased Payment outbox batches to QStash
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts payment publish
 
   run-payment:
     desc: Run Payment gRPC and provider webhook listeners

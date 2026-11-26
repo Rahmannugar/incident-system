@@ -10,13 +10,17 @@ import (
 )
 
 type Config struct {
-	HTTPAddress      string
-	IdentityAddress  string
-	OrderAddress     string
-	PaymentAddress   string
-	InventoryAddress string
-	InventoryToken   string
-	RPCTimeout       time.Duration
+	OrderToken         string
+	PaymentToken       string
+	PaymentCallbackURL string
+	SigningKeys        [2]string
+	HTTPAddress        string
+	IdentityAddress    string
+	OrderAddress       string
+	PaymentAddress     string
+	InventoryAddress   string
+	InventoryToken     string
+	RPCTimeout         time.Duration
 }
 
 func env(name, fallback string) string {
@@ -42,6 +46,9 @@ func Load() (Config, error) {
 	c.RPCTimeout, err = time.ParseDuration(env("INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT", "3s"))
 	if err != nil || c.RPCTimeout < time.Millisecond || c.RPCTimeout > 30*time.Second {
 		return c, fmt.Errorf("INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT must be between 1ms and 30s")
+	}
+	if err := c.loadEvents(); err != nil {
+		return c, err
 	}
 	return c, nil
 }

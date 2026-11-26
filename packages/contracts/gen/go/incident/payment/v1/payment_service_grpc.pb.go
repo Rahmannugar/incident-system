@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PaymentService_InitiatePayment_FullMethodName = "/incident.payment.v1.PaymentService/InitiatePayment"
-	PaymentService_GetPayment_FullMethodName      = "/incident.payment.v1.PaymentService/GetPayment"
-	PaymentService_CheckHealth_FullMethodName     = "/incident.payment.v1.PaymentService/CheckHealth"
+	PaymentService_InitiatePayment_FullMethodName         = "/incident.payment.v1.PaymentService/InitiatePayment"
+	PaymentService_GetPayment_FullMethodName              = "/incident.payment.v1.PaymentService/GetPayment"
+	PaymentService_GetPaymentForSettlement_FullMethodName = "/incident.payment.v1.PaymentService/GetPaymentForSettlement"
+	PaymentService_RefundPayment_FullMethodName           = "/incident.payment.v1.PaymentService/RefundPayment"
+	PaymentService_CheckHealth_FullMethodName             = "/incident.payment.v1.PaymentService/CheckHealth"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -30,6 +32,8 @@ const (
 type PaymentServiceClient interface {
 	InitiatePayment(ctx context.Context, in *InitiatePaymentRequest, opts ...grpc.CallOption) (*InitiatePaymentResponse, error)
 	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...grpc.CallOption) (*GetPaymentResponse, error)
+	GetPaymentForSettlement(ctx context.Context, in *GetPaymentForSettlementRequest, opts ...grpc.CallOption) (*GetPaymentForSettlementResponse, error)
+	RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error)
 	CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error)
 }
 
@@ -61,6 +65,26 @@ func (c *paymentServiceClient) GetPayment(ctx context.Context, in *GetPaymentReq
 	return out, nil
 }
 
+func (c *paymentServiceClient) GetPaymentForSettlement(ctx context.Context, in *GetPaymentForSettlementRequest, opts ...grpc.CallOption) (*GetPaymentForSettlementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPaymentForSettlementResponse)
+	err := c.cc.Invoke(ctx, PaymentService_GetPaymentForSettlement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) RefundPayment(ctx context.Context, in *RefundPaymentRequest, opts ...grpc.CallOption) (*RefundPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundPaymentResponse)
+	err := c.cc.Invoke(ctx, PaymentService_RefundPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *paymentServiceClient) CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CheckHealthResponse)
@@ -77,6 +101,8 @@ func (c *paymentServiceClient) CheckHealth(ctx context.Context, in *CheckHealthR
 type PaymentServiceServer interface {
 	InitiatePayment(context.Context, *InitiatePaymentRequest) (*InitiatePaymentResponse, error)
 	GetPayment(context.Context, *GetPaymentRequest) (*GetPaymentResponse, error)
+	GetPaymentForSettlement(context.Context, *GetPaymentForSettlementRequest) (*GetPaymentForSettlementResponse, error)
+	RefundPayment(context.Context, *RefundPaymentRequest) (*RefundPaymentResponse, error)
 	CheckHealth(context.Context, *CheckHealthRequest) (*CheckHealthResponse, error)
 	mustEmbedUnimplementedPaymentServiceServer()
 }
@@ -93,6 +119,12 @@ func (UnimplementedPaymentServiceServer) InitiatePayment(context.Context, *Initi
 }
 func (UnimplementedPaymentServiceServer) GetPayment(context.Context, *GetPaymentRequest) (*GetPaymentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPayment not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetPaymentForSettlement(context.Context, *GetPaymentForSettlementRequest) (*GetPaymentForSettlementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPaymentForSettlement not implemented")
+}
+func (UnimplementedPaymentServiceServer) RefundPayment(context.Context, *RefundPaymentRequest) (*RefundPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefundPayment not implemented")
 }
 func (UnimplementedPaymentServiceServer) CheckHealth(context.Context, *CheckHealthRequest) (*CheckHealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CheckHealth not implemented")
@@ -154,6 +186,42 @@ func _PaymentService_GetPayment_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_GetPaymentForSettlement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPaymentForSettlementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetPaymentForSettlement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetPaymentForSettlement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetPaymentForSettlement(ctx, req.(*GetPaymentForSettlementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_RefundPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).RefundPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_RefundPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).RefundPayment(ctx, req.(*RefundPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PaymentService_CheckHealth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CheckHealthRequest)
 	if err := dec(in); err != nil {
@@ -186,6 +254,14 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPayment",
 			Handler:    _PaymentService_GetPayment_Handler,
+		},
+		{
+			MethodName: "GetPaymentForSettlement",
+			Handler:    _PaymentService_GetPaymentForSettlement_Handler,
+		},
+		{
+			MethodName: "RefundPayment",
+			Handler:    _PaymentService_RefundPayment_Handler,
 		},
 		{
 			MethodName: "CheckHealth",

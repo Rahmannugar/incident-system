@@ -1,5 +1,12 @@
 name: incident-system
 services:
+  qstash:
+    image: public.ecr.aws/upstash/qstash@sha256:2d447f3cdbe3d898eaffde21202632e0c20f58cce99c9d64716cc38f451baf32
+    command: ['qstash', 'dev', '-port=8080', '-log-port=8081']
+    ports:
+      - '127.0.0.1:8081:8080'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
   postgres:
     image: postgres:18-alpine
     environment:

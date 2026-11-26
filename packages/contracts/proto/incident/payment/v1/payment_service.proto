@@ -5,6 +5,8 @@ option go_package = "github.com/Rahmannugar/incident-system/packages/contracts/g
 service PaymentService {
   rpc InitiatePayment(InitiatePaymentRequest) returns (InitiatePaymentResponse);
   rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  rpc GetPaymentForSettlement(GetPaymentForSettlementRequest) returns (GetPaymentForSettlementResponse);
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
   rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
 }
 message Payment {
@@ -22,5 +24,17 @@ message InitiatePaymentRequest { string order_id = 1; }
 message InitiatePaymentResponse { Payment payment = 1; }
 message GetPaymentRequest { string order_id = 1; }
 message GetPaymentResponse { Payment payment = 1; }
+// Settlement RPCs require the Payment service credential, never a customer session.
+message GetPaymentForSettlementRequest { string order_id = 1; }
+message GetPaymentForSettlementResponse { Payment payment = 1; Refund refund = 2; }
+message RefundPaymentRequest { string payment_id = 1; string order_id = 2; }
+message RefundPaymentResponse { Refund refund = 1; }
+message Refund {
+  string payment_id = 1;
+  int64 amount_minor = 2;
+  string currency = 3;
+  string provider_reference = 4;
+  int64 completed_at_unix_ms = 5;
+}
 message CheckHealthRequest {}
 message CheckHealthResponse { bool healthy = 1; }

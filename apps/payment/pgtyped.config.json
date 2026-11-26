@@ -5,6 +5,16 @@
       "mode": "sql",
       "include": "payments.sql",
       "emitTemplate": "{{dir}}/{{name}}.queries.ts"
+    },
+    {
+      "mode": "sql",
+      "include": "outbox.sql",
+      "emitTemplate": "{{dir}}/{{name}}.queries.ts"
+    },
+    {
+      "mode": "sql",
+      "include": "refunds.sql",
+      "emitTemplate": "{{dir}}/{{name}}.queries.ts"
     }
   ],
   "failOnError": true,

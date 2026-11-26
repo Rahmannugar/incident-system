@@ -57,7 +57,7 @@ func (a *API) getOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeOrder(w http.ResponseWriter, input *orderv1.Order, code int) {
-	if input == nil || input.Id == "" || input.Sku == "" || input.Quantity < 1 || input.Status != "pending" || input.CreatedAtUnix <= 0 {
+	if input == nil || input.Id == "" || input.Sku == "" || input.Quantity < 1 || (input.Status != "pending" && input.Status != "confirmed" && input.Status != "failed" && input.Status != "refunded") || input.CreatedAtUnix <= 0 {
 		reject(w, 502, "invalid_upstream_response", "Order returned an invalid response")
 		return
 	}

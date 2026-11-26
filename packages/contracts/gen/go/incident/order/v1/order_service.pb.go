@@ -361,6 +361,239 @@ func (x *CheckHealthResponse) GetHealthy() bool {
 	return false
 }
 
+// Internal settlement operations require x-service-token.
+type PrepareOrderSettlementRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	PayloadHash   string                 `protobuf:"bytes,3,opt,name=payload_hash,json=payloadHash,proto3" json:"payload_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareOrderSettlementRequest) Reset() {
+	*x = PrepareOrderSettlementRequest{}
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareOrderSettlementRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareOrderSettlementRequest) ProtoMessage() {}
+
+func (x *PrepareOrderSettlementRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareOrderSettlementRequest.ProtoReflect.Descriptor instead.
+func (*PrepareOrderSettlementRequest) Descriptor() ([]byte, []int) {
+	return file_incident_order_v1_order_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PrepareOrderSettlementRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PrepareOrderSettlementRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *PrepareOrderSettlementRequest) GetPayloadHash() string {
+	if x != nil {
+		return x.PayloadHash
+	}
+	return ""
+}
+
+type PrepareOrderSettlementResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	PaymentId     string                 `protobuf:"bytes,2,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareOrderSettlementResponse) Reset() {
+	*x = PrepareOrderSettlementResponse{}
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareOrderSettlementResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareOrderSettlementResponse) ProtoMessage() {}
+
+func (x *PrepareOrderSettlementResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareOrderSettlementResponse.ProtoReflect.Descriptor instead.
+func (*PrepareOrderSettlementResponse) Descriptor() ([]byte, []int) {
+	return file_incident_order_v1_order_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PrepareOrderSettlementResponse) GetOrder() *Order {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
+func (x *PrepareOrderSettlementResponse) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+type FinalizeOrderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	PayloadHash   string                 `protobuf:"bytes,3,opt,name=payload_hash,json=payloadHash,proto3" json:"payload_hash,omitempty"`
+	PaymentId     string                 `protobuf:"bytes,4,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinalizeOrderRequest) Reset() {
+	*x = FinalizeOrderRequest{}
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeOrderRequest) ProtoMessage() {}
+
+func (x *FinalizeOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeOrderRequest.ProtoReflect.Descriptor instead.
+func (*FinalizeOrderRequest) Descriptor() ([]byte, []int) {
+	return file_incident_order_v1_order_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FinalizeOrderRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FinalizeOrderRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *FinalizeOrderRequest) GetPayloadHash() string {
+	if x != nil {
+		return x.PayloadHash
+	}
+	return ""
+}
+
+func (x *FinalizeOrderRequest) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
+	}
+	return ""
+}
+
+func (x *FinalizeOrderRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type FinalizeOrderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinalizeOrderResponse) Reset() {
+	*x = FinalizeOrderResponse{}
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeOrderResponse) ProtoMessage() {}
+
+func (x *FinalizeOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_incident_order_v1_order_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeOrderResponse.ProtoReflect.Descriptor instead.
+func (*FinalizeOrderResponse) Descriptor() ([]byte, []int) {
+	return file_incident_order_v1_order_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *FinalizeOrderResponse) GetOrder() *Order {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
 var File_incident_order_v1_order_service_proto protoreflect.FileDescriptor
 
 const file_incident_order_v1_order_service_proto_rawDesc = "" +
@@ -383,10 +616,29 @@ const file_incident_order_v1_order_service_proto_rawDesc = "" +
 	"\x05order\x18\x01 \x01(\v2\x18.incident.order.v1.OrderR\x05order\"\x14\n" +
 	"\x12CheckHealthRequest\"/\n" +
 	"\x13CheckHealthResponse\x12\x18\n" +
-	"\ahealthy\x18\x01 \x01(\bR\ahealthy2\x9f\x02\n" +
+	"\ahealthy\x18\x01 \x01(\bR\ahealthy\"m\n" +
+	"\x1dPrepareOrderSettlementRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12!\n" +
+	"\fpayload_hash\x18\x03 \x01(\tR\vpayloadHash\"o\n" +
+	"\x1ePrepareOrderSettlementResponse\x12.\n" +
+	"\x05order\x18\x01 \x01(\v2\x18.incident.order.v1.OrderR\x05order\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x02 \x01(\tR\tpaymentId\"\x9b\x01\n" +
+	"\x14FinalizeOrderRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12!\n" +
+	"\fpayload_hash\x18\x03 \x01(\tR\vpayloadHash\x12\x1d\n" +
+	"\n" +
+	"payment_id\x18\x04 \x01(\tR\tpaymentId\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\"G\n" +
+	"\x15FinalizeOrderResponse\x12.\n" +
+	"\x05order\x18\x01 \x01(\v2\x18.incident.order.v1.OrderR\x05order2\x82\x04\n" +
 	"\fOrderService\x12\\\n" +
 	"\vCreateOrder\x12%.incident.order.v1.CreateOrderRequest\x1a&.incident.order.v1.CreateOrderResponse\x12S\n" +
-	"\bGetOrder\x12\".incident.order.v1.GetOrderRequest\x1a#.incident.order.v1.GetOrderResponse\x12\\\n" +
+	"\bGetOrder\x12\".incident.order.v1.GetOrderRequest\x1a#.incident.order.v1.GetOrderResponse\x12}\n" +
+	"\x16PrepareOrderSettlement\x120.incident.order.v1.PrepareOrderSettlementRequest\x1a1.incident.order.v1.PrepareOrderSettlementResponse\x12b\n" +
+	"\rFinalizeOrder\x12'.incident.order.v1.FinalizeOrderRequest\x1a(.incident.order.v1.FinalizeOrderResponse\x12\\\n" +
 	"\vCheckHealth\x12%.incident.order.v1.CheckHealthRequest\x1a&.incident.order.v1.CheckHealthResponseB\\ZZgithub.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1;orderv1b\x06proto3"
 
 var (
@@ -401,30 +653,40 @@ func file_incident_order_v1_order_service_proto_rawDescGZIP() []byte {
 	return file_incident_order_v1_order_service_proto_rawDescData
 }
 
-var file_incident_order_v1_order_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_incident_order_v1_order_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_incident_order_v1_order_service_proto_goTypes = []any{
-	(*Order)(nil),               // 0: incident.order.v1.Order
-	(*CreateOrderRequest)(nil),  // 1: incident.order.v1.CreateOrderRequest
-	(*CreateOrderResponse)(nil), // 2: incident.order.v1.CreateOrderResponse
-	(*GetOrderRequest)(nil),     // 3: incident.order.v1.GetOrderRequest
-	(*GetOrderResponse)(nil),    // 4: incident.order.v1.GetOrderResponse
-	(*CheckHealthRequest)(nil),  // 5: incident.order.v1.CheckHealthRequest
-	(*CheckHealthResponse)(nil), // 6: incident.order.v1.CheckHealthResponse
+	(*Order)(nil),                          // 0: incident.order.v1.Order
+	(*CreateOrderRequest)(nil),             // 1: incident.order.v1.CreateOrderRequest
+	(*CreateOrderResponse)(nil),            // 2: incident.order.v1.CreateOrderResponse
+	(*GetOrderRequest)(nil),                // 3: incident.order.v1.GetOrderRequest
+	(*GetOrderResponse)(nil),               // 4: incident.order.v1.GetOrderResponse
+	(*CheckHealthRequest)(nil),             // 5: incident.order.v1.CheckHealthRequest
+	(*CheckHealthResponse)(nil),            // 6: incident.order.v1.CheckHealthResponse
+	(*PrepareOrderSettlementRequest)(nil),  // 7: incident.order.v1.PrepareOrderSettlementRequest
+	(*PrepareOrderSettlementResponse)(nil), // 8: incident.order.v1.PrepareOrderSettlementResponse
+	(*FinalizeOrderRequest)(nil),           // 9: incident.order.v1.FinalizeOrderRequest
+	(*FinalizeOrderResponse)(nil),          // 10: incident.order.v1.FinalizeOrderResponse
 }
 var file_incident_order_v1_order_service_proto_depIdxs = []int32{
-	0, // 0: incident.order.v1.CreateOrderResponse.order:type_name -> incident.order.v1.Order
-	0, // 1: incident.order.v1.GetOrderResponse.order:type_name -> incident.order.v1.Order
-	1, // 2: incident.order.v1.OrderService.CreateOrder:input_type -> incident.order.v1.CreateOrderRequest
-	3, // 3: incident.order.v1.OrderService.GetOrder:input_type -> incident.order.v1.GetOrderRequest
-	5, // 4: incident.order.v1.OrderService.CheckHealth:input_type -> incident.order.v1.CheckHealthRequest
-	2, // 5: incident.order.v1.OrderService.CreateOrder:output_type -> incident.order.v1.CreateOrderResponse
-	4, // 6: incident.order.v1.OrderService.GetOrder:output_type -> incident.order.v1.GetOrderResponse
-	6, // 7: incident.order.v1.OrderService.CheckHealth:output_type -> incident.order.v1.CheckHealthResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: incident.order.v1.CreateOrderResponse.order:type_name -> incident.order.v1.Order
+	0,  // 1: incident.order.v1.GetOrderResponse.order:type_name -> incident.order.v1.Order
+	0,  // 2: incident.order.v1.PrepareOrderSettlementResponse.order:type_name -> incident.order.v1.Order
+	0,  // 3: incident.order.v1.FinalizeOrderResponse.order:type_name -> incident.order.v1.Order
+	1,  // 4: incident.order.v1.OrderService.CreateOrder:input_type -> incident.order.v1.CreateOrderRequest
+	3,  // 5: incident.order.v1.OrderService.GetOrder:input_type -> incident.order.v1.GetOrderRequest
+	7,  // 6: incident.order.v1.OrderService.PrepareOrderSettlement:input_type -> incident.order.v1.PrepareOrderSettlementRequest
+	9,  // 7: incident.order.v1.OrderService.FinalizeOrder:input_type -> incident.order.v1.FinalizeOrderRequest
+	5,  // 8: incident.order.v1.OrderService.CheckHealth:input_type -> incident.order.v1.CheckHealthRequest
+	2,  // 9: incident.order.v1.OrderService.CreateOrder:output_type -> incident.order.v1.CreateOrderResponse
+	4,  // 10: incident.order.v1.OrderService.GetOrder:output_type -> incident.order.v1.GetOrderResponse
+	8,  // 11: incident.order.v1.OrderService.PrepareOrderSettlement:output_type -> incident.order.v1.PrepareOrderSettlementResponse
+	10, // 12: incident.order.v1.OrderService.FinalizeOrder:output_type -> incident.order.v1.FinalizeOrderResponse
+	6,  // 13: incident.order.v1.OrderService.CheckHealth:output_type -> incident.order.v1.CheckHealthResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_incident_order_v1_order_service_proto_init() }
@@ -438,7 +700,7 @@ func file_incident_order_v1_order_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_incident_order_v1_order_service_proto_rawDesc), len(file_incident_order_v1_order_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

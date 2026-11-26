@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	ServiceToken    string
 	DatabaseURL     string
 	Address         string
 	IdentityAddress string
@@ -25,6 +26,10 @@ func value(name, fallback string) string {
 
 func Load() (Config, error) {
 	c := Config{Address: value("INCIDENT_SYSTEM_ORDER_GRPC_ADDRESS", "127.0.0.1:50052"), IdentityAddress: value("INCIDENT_SYSTEM_ORDER_IDENTITY_ADDRESS", "127.0.0.1:50051")}
+	c.ServiceToken = os.Getenv("INCIDENT_SYSTEM_ORDER_SERVICE_TOKEN")
+	if len(c.ServiceToken) < 32 {
+		return c, fmt.Errorf("INCIDENT_SYSTEM_ORDER_SERVICE_TOKEN must contain at least 32 characters")
+	}
 	password := os.Getenv("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD")
 	if password == "" {
 		return c, fmt.Errorf("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD is required")

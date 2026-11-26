@@ -19,7 +19,7 @@ Read the current user and session expiry using an Authorization bearer token.
 Create a pending single-item order using an Authorization bearer token.
 `POST /orders`
 
-Read an order owned by the authenticated caller.
+Read an owned order and its pending, confirmed, failed or refunded state.
 `GET /orders/{id}`
 
 Reserve the stored item for an owned pending order; retries reuse the same reservation.
@@ -35,6 +35,9 @@ Initiate payment for an owned reserved order; retries return its existing attemp
 
 Read the owned order's payment status and quoted amount.
 `GET /orders/{id}/payment`
+
+Accept a signed QStash payment outcome and finalize its order after inventory or refund acknowledgement.
+`POST /events/payment`
 
 ## Health
 

@@ -16,6 +16,14 @@ function dependency(error: ServiceError, internal = false): PaymentFailure {
 
 export class PaymentService {
   constructor(private readonly repository: PaymentRepository, private readonly orders: OrderServiceClient, private readonly inventory: InventoryServiceClient, private readonly token: string, private readonly unitAmount: number, private readonly currency: string) {}
+  async settlement(orderId: string) {
+    if (!uuidPattern.test(orderId)) throw new PaymentFailure('invalid_request', 'A valid order ID is required');
+    return this.repository.settlement(orderId.toLowerCase());
+  }
+  async refund(paymentId: string, orderId: string, active: AssertActive) {
+    if (!uuidPattern.test(paymentId) || !uuidPattern.test(orderId)) throw new PaymentFailure('invalid_request', 'Valid payment and order IDs are required');
+    return this.repository.refund(paymentId.toLowerCase(), orderId.toLowerCase(), active);
+  }
   private async ownedOrder(orderId: string, authorization: string, requestId: string, deadline: number) {
     if (!uuidPattern.test(orderId)) throw new PaymentFailure('invalid_request', 'A valid order ID is required');
     if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(authorization)) throw new PaymentFailure('unauthorized', 'A valid session is required');

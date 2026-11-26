@@ -55,6 +55,30 @@ export interface CheckHealthResponse {
   healthy: boolean;
 }
 
+/** Internal settlement operations require x-service-token. */
+export interface PrepareOrderSettlementRequest {
+  id: string;
+  eventId: string;
+  payloadHash: string;
+}
+
+export interface PrepareOrderSettlementResponse {
+  order: Order | undefined;
+  paymentId: string;
+}
+
+export interface FinalizeOrderRequest {
+  id: string;
+  eventId: string;
+  payloadHash: string;
+  paymentId: string;
+  status: string;
+}
+
+export interface FinalizeOrderResponse {
+  order: Order | undefined;
+}
+
 function createBaseOrder(): Order {
   return { id: "", sku: "", quantity: 0, status: "", createdAtUnix: 0 };
 }
@@ -488,6 +512,314 @@ export const CheckHealthResponse: MessageFns<CheckHealthResponse> = {
   },
 };
 
+function createBasePrepareOrderSettlementRequest(): PrepareOrderSettlementRequest {
+  return { id: "", eventId: "", payloadHash: "" };
+}
+
+export const PrepareOrderSettlementRequest: MessageFns<PrepareOrderSettlementRequest> = {
+  encode(message: PrepareOrderSettlementRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.eventId !== "") {
+      writer.uint32(18).string(message.eventId);
+    }
+    if (message.payloadHash !== "") {
+      writer.uint32(26).string(message.payloadHash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PrepareOrderSettlementRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePrepareOrderSettlementRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.eventId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.payloadHash = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<PrepareOrderSettlementRequest>, I>>(base?: I): PrepareOrderSettlementRequest {
+    return PrepareOrderSettlementRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PrepareOrderSettlementRequest>, I>>(
+    object: I,
+  ): PrepareOrderSettlementRequest {
+    const message = createBasePrepareOrderSettlementRequest();
+    message.id = object.id ?? "";
+    message.eventId = object.eventId ?? "";
+    message.payloadHash = object.payloadHash ?? "";
+    return message;
+  },
+};
+
+function createBasePrepareOrderSettlementResponse(): PrepareOrderSettlementResponse {
+  return { order: undefined, paymentId: "" };
+}
+
+export const PrepareOrderSettlementResponse: MessageFns<PrepareOrderSettlementResponse> = {
+  encode(message: PrepareOrderSettlementResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.order !== undefined) {
+      Order.encode(message.order, writer.uint32(10).fork()).join();
+    }
+    if (message.paymentId !== "") {
+      writer.uint32(18).string(message.paymentId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PrepareOrderSettlementResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePrepareOrderSettlementResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.order = Order.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.paymentId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<PrepareOrderSettlementResponse>, I>>(base?: I): PrepareOrderSettlementResponse {
+    return PrepareOrderSettlementResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PrepareOrderSettlementResponse>, I>>(
+    object: I,
+  ): PrepareOrderSettlementResponse {
+    const message = createBasePrepareOrderSettlementResponse();
+    message.order = (object.order !== undefined && object.order !== null) ? Order.fromPartial(object.order) : undefined;
+    message.paymentId = object.paymentId ?? "";
+    return message;
+  },
+};
+
+function createBaseFinalizeOrderRequest(): FinalizeOrderRequest {
+  return { id: "", eventId: "", payloadHash: "", paymentId: "", status: "" };
+}
+
+export const FinalizeOrderRequest: MessageFns<FinalizeOrderRequest> = {
+  encode(message: FinalizeOrderRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.eventId !== "") {
+      writer.uint32(18).string(message.eventId);
+    }
+    if (message.payloadHash !== "") {
+      writer.uint32(26).string(message.payloadHash);
+    }
+    if (message.paymentId !== "") {
+      writer.uint32(34).string(message.paymentId);
+    }
+    if (message.status !== "") {
+      writer.uint32(42).string(message.status);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FinalizeOrderRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseFinalizeOrderRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.eventId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.payloadHash = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.paymentId = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.status = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<FinalizeOrderRequest>, I>>(base?: I): FinalizeOrderRequest {
+    return FinalizeOrderRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FinalizeOrderRequest>, I>>(object: I): FinalizeOrderRequest {
+    const message = createBaseFinalizeOrderRequest();
+    message.id = object.id ?? "";
+    message.eventId = object.eventId ?? "";
+    message.payloadHash = object.payloadHash ?? "";
+    message.paymentId = object.paymentId ?? "";
+    message.status = object.status ?? "";
+    return message;
+  },
+};
+
+function createBaseFinalizeOrderResponse(): FinalizeOrderResponse {
+  return { order: undefined };
+}
+
+export const FinalizeOrderResponse: MessageFns<FinalizeOrderResponse> = {
+  encode(message: FinalizeOrderResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.order !== undefined) {
+      Order.encode(message.order, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FinalizeOrderResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseFinalizeOrderResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.order = Order.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<FinalizeOrderResponse>, I>>(base?: I): FinalizeOrderResponse {
+    return FinalizeOrderResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FinalizeOrderResponse>, I>>(object: I): FinalizeOrderResponse {
+    const message = createBaseFinalizeOrderResponse();
+    message.order = (object.order !== undefined && object.order !== null) ? Order.fromPartial(object.order) : undefined;
+    return message;
+  },
+};
+
 export type OrderServiceService = typeof OrderServiceService;
 export const OrderServiceService = {
   createOrder: {
@@ -508,6 +840,28 @@ export const OrderServiceService = {
     responseSerialize: (value: GetOrderResponse): Buffer => Buffer.from(GetOrderResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): GetOrderResponse => GetOrderResponse.decode(value),
   },
+  prepareOrderSettlement: {
+    path: "/incident.order.v1.OrderService/PrepareOrderSettlement" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: PrepareOrderSettlementRequest): Buffer =>
+      Buffer.from(PrepareOrderSettlementRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): PrepareOrderSettlementRequest => PrepareOrderSettlementRequest.decode(value),
+    responseSerialize: (value: PrepareOrderSettlementResponse): Buffer =>
+      Buffer.from(PrepareOrderSettlementResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): PrepareOrderSettlementResponse =>
+      PrepareOrderSettlementResponse.decode(value),
+  },
+  finalizeOrder: {
+    path: "/incident.order.v1.OrderService/FinalizeOrder" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: FinalizeOrderRequest): Buffer => Buffer.from(FinalizeOrderRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): FinalizeOrderRequest => FinalizeOrderRequest.decode(value),
+    responseSerialize: (value: FinalizeOrderResponse): Buffer =>
+      Buffer.from(FinalizeOrderResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): FinalizeOrderResponse => FinalizeOrderResponse.decode(value),
+  },
   checkHealth: {
     path: "/incident.order.v1.OrderService/CheckHealth" as const,
     requestStream: false as const,
@@ -522,6 +876,8 @@ export const OrderServiceService = {
 export interface OrderServiceServer extends UntypedServiceImplementation {
   createOrder: handleUnaryCall<CreateOrderRequest, CreateOrderResponse>;
   getOrder: handleUnaryCall<GetOrderRequest, GetOrderResponse>;
+  prepareOrderSettlement: handleUnaryCall<PrepareOrderSettlementRequest, PrepareOrderSettlementResponse>;
+  finalizeOrder: handleUnaryCall<FinalizeOrderRequest, FinalizeOrderResponse>;
   checkHealth: handleUnaryCall<CheckHealthRequest, CheckHealthResponse>;
 }
 
@@ -555,6 +911,36 @@ export interface OrderServiceClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: GetOrderResponse) => void,
+  ): ClientUnaryCall;
+  prepareOrderSettlement(
+    request: PrepareOrderSettlementRequest,
+    callback: (error: ServiceError | null, response: PrepareOrderSettlementResponse) => void,
+  ): ClientUnaryCall;
+  prepareOrderSettlement(
+    request: PrepareOrderSettlementRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: PrepareOrderSettlementResponse) => void,
+  ): ClientUnaryCall;
+  prepareOrderSettlement(
+    request: PrepareOrderSettlementRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: PrepareOrderSettlementResponse) => void,
+  ): ClientUnaryCall;
+  finalizeOrder(
+    request: FinalizeOrderRequest,
+    callback: (error: ServiceError | null, response: FinalizeOrderResponse) => void,
+  ): ClientUnaryCall;
+  finalizeOrder(
+    request: FinalizeOrderRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: FinalizeOrderResponse) => void,
+  ): ClientUnaryCall;
+  finalizeOrder(
+    request: FinalizeOrderRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: FinalizeOrderResponse) => void,
   ): ClientUnaryCall;
   checkHealth(
     request: CheckHealthRequest,

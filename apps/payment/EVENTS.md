@@ -25,3 +25,28 @@ event ID with different raw content is rejected.
 `late` describes the stored deadline, not the current state of Inventory. Payment
 success records the simulated provider's result; it does not assert that stock
 was committed or the order confirmed.
+
+A simulated full refund is recorded separately from the successful attempt.
+It does not rewrite the original outcome or create another payment outcome event.
+Settlement reads include its stored completion, full amount and provider reference.
+
+## Outbox publication
+
+The separate Payment publisher claims up to 20 rows with 30-second leases and
+fences completion using a claim token. It uses transactional NOTIFY wakeups and
+five-second fallback polling. HTTP publication happens outside database locks.
+
+Each batch result is persisted independently. `published_at` and
+`qstash_message_id` mean QStash accepted that event; they do not mean a consumer
+processed it. Unconfirmed acceptance is retried using the same event ID.
+
+Retries back off, and eight failed/interrupted claims retain an inspectable
+`exhausted_at`/`last_error_code`. Invalid stored events are exhausted without
+publication. Expired claims can be reclaimed, and stale workers cannot overwrite
+the new owner's result.
+
+`INCIDENT_SYSTEM_QSTASH_MODE` selects `local` or `hosted`. Local mode uses the
+pinned Upstash development container and its public development credentials;
+hosted account credentials remain separate. `INCIDENT_SYSTEM_CALLBACK_BASE_URL`
+is required in either mode. Host-running consumers use `http://host.docker.internal:<port>`
+as their callback origin in local mode. The development server stores its data in memory.

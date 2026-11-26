@@ -50,7 +50,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return errors.New("bind gateway listener")
 	}
-	server := &http.Server{Handler: gateway.New(identityv1.NewIdentityServiceClient(connection), orderv1.NewOrderServiceClient(orderConnection), inventoryv1.NewInventoryServiceClient(inventoryConnection), cfg.InventoryToken, paymentv1.NewPaymentServiceClient(paymentConnection), cfg.RPCTimeout, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 8192}
+	server := &http.Server{Handler: gateway.New(identityv1.NewIdentityServiceClient(connection), orderv1.NewOrderServiceClient(orderConnection), inventoryv1.NewInventoryServiceClient(inventoryConnection), cfg.InventoryToken, paymentv1.NewPaymentServiceClient(paymentConnection), cfg.RPCTimeout, logger, gateway.EventConfig{Destination: cfg.PaymentCallbackURL, SigningKeys: cfg.SigningKeys, OrderToken: cfg.OrderToken, PaymentToken: cfg.PaymentToken}), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 8192}
 	stopped := make(chan error, 1)
 	go func() { stopped <- server.Serve(listener) }()
 	logger.Info("gateway.started", "service", "gateway", "address", listener.Addr().String())

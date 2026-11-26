@@ -21,6 +21,8 @@
     "apps/order/test/**/*.ts",
     "apps/inventory/test/**/*.ts",
     "packages/contracts/gen/ts/**/*.ts",
-    "apps/payment/**/*.ts"
+    "apps/payment/**/*.ts",
+    "packages/qstash/**/*.ts",
+    "apps/gateway/test/**/*.ts"
   ]
 }

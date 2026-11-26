@@ -51,6 +51,33 @@ export interface GetPaymentResponse {
   payment: Payment | undefined;
 }
 
+/** Settlement RPCs require the Payment service credential, never a customer session. */
+export interface GetPaymentForSettlementRequest {
+  orderId: string;
+}
+
+export interface GetPaymentForSettlementResponse {
+  payment: Payment | undefined;
+  refund: Refund | undefined;
+}
+
+export interface RefundPaymentRequest {
+  paymentId: string;
+  orderId: string;
+}
+
+export interface RefundPaymentResponse {
+  refund: Refund | undefined;
+}
+
+export interface Refund {
+  paymentId: string;
+  amountMinor: number;
+  currency: string;
+  providerReference: string;
+  completedAtUnixMs: number;
+}
+
 export interface CheckHealthRequest {
 }
 
@@ -443,6 +470,363 @@ export const GetPaymentResponse: MessageFns<GetPaymentResponse> = {
   },
 };
 
+function createBaseGetPaymentForSettlementRequest(): GetPaymentForSettlementRequest {
+  return { orderId: "" };
+}
+
+export const GetPaymentForSettlementRequest: MessageFns<GetPaymentForSettlementRequest> = {
+  encode(message: GetPaymentForSettlementRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.orderId !== "") {
+      writer.uint32(10).string(message.orderId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPaymentForSettlementRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGetPaymentForSettlementRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.orderId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<GetPaymentForSettlementRequest>, I>>(base?: I): GetPaymentForSettlementRequest {
+    return GetPaymentForSettlementRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPaymentForSettlementRequest>, I>>(
+    object: I,
+  ): GetPaymentForSettlementRequest {
+    const message = createBaseGetPaymentForSettlementRequest();
+    message.orderId = object.orderId ?? "";
+    return message;
+  },
+};
+
+function createBaseGetPaymentForSettlementResponse(): GetPaymentForSettlementResponse {
+  return { payment: undefined, refund: undefined };
+}
+
+export const GetPaymentForSettlementResponse: MessageFns<GetPaymentForSettlementResponse> = {
+  encode(message: GetPaymentForSettlementResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.payment !== undefined) {
+      Payment.encode(message.payment, writer.uint32(10).fork()).join();
+    }
+    if (message.refund !== undefined) {
+      Refund.encode(message.refund, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPaymentForSettlementResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGetPaymentForSettlementResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.payment = Payment.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.refund = Refund.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<GetPaymentForSettlementResponse>, I>>(base?: I): GetPaymentForSettlementResponse {
+    return GetPaymentForSettlementResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPaymentForSettlementResponse>, I>>(
+    object: I,
+  ): GetPaymentForSettlementResponse {
+    const message = createBaseGetPaymentForSettlementResponse();
+    message.payment = (object.payment !== undefined && object.payment !== null)
+      ? Payment.fromPartial(object.payment)
+      : undefined;
+    message.refund = (object.refund !== undefined && object.refund !== null)
+      ? Refund.fromPartial(object.refund)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseRefundPaymentRequest(): RefundPaymentRequest {
+  return { paymentId: "", orderId: "" };
+}
+
+export const RefundPaymentRequest: MessageFns<RefundPaymentRequest> = {
+  encode(message: RefundPaymentRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.paymentId !== "") {
+      writer.uint32(10).string(message.paymentId);
+    }
+    if (message.orderId !== "") {
+      writer.uint32(18).string(message.orderId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RefundPaymentRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRefundPaymentRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.paymentId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.orderId = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<RefundPaymentRequest>, I>>(base?: I): RefundPaymentRequest {
+    return RefundPaymentRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RefundPaymentRequest>, I>>(object: I): RefundPaymentRequest {
+    const message = createBaseRefundPaymentRequest();
+    message.paymentId = object.paymentId ?? "";
+    message.orderId = object.orderId ?? "";
+    return message;
+  },
+};
+
+function createBaseRefundPaymentResponse(): RefundPaymentResponse {
+  return { refund: undefined };
+}
+
+export const RefundPaymentResponse: MessageFns<RefundPaymentResponse> = {
+  encode(message: RefundPaymentResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.refund !== undefined) {
+      Refund.encode(message.refund, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RefundPaymentResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRefundPaymentResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.refund = Refund.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<RefundPaymentResponse>, I>>(base?: I): RefundPaymentResponse {
+    return RefundPaymentResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RefundPaymentResponse>, I>>(object: I): RefundPaymentResponse {
+    const message = createBaseRefundPaymentResponse();
+    message.refund = (object.refund !== undefined && object.refund !== null)
+      ? Refund.fromPartial(object.refund)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseRefund(): Refund {
+  return { paymentId: "", amountMinor: 0, currency: "", providerReference: "", completedAtUnixMs: 0 };
+}
+
+export const Refund: MessageFns<Refund> = {
+  encode(message: Refund, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.paymentId !== "") {
+      writer.uint32(10).string(message.paymentId);
+    }
+    if (message.amountMinor !== 0) {
+      writer.uint32(16).int64(message.amountMinor);
+    }
+    if (message.currency !== "") {
+      writer.uint32(26).string(message.currency);
+    }
+    if (message.providerReference !== "") {
+      writer.uint32(34).string(message.providerReference);
+    }
+    if (message.completedAtUnixMs !== 0) {
+      writer.uint32(40).int64(message.completedAtUnixMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Refund {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRefund();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.paymentId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.amountMinor = longToNumber(reader.int64());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.currency = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.providerReference = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.completedAtUnixMs = longToNumber(reader.int64());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  create<I extends Exact<DeepPartial<Refund>, I>>(base?: I): Refund {
+    return Refund.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Refund>, I>>(object: I): Refund {
+    const message = createBaseRefund();
+    message.paymentId = object.paymentId ?? "";
+    message.amountMinor = object.amountMinor ?? 0;
+    message.currency = object.currency ?? "";
+    message.providerReference = object.providerReference ?? "";
+    message.completedAtUnixMs = object.completedAtUnixMs ?? 0;
+    return message;
+  },
+};
+
 function createBaseCheckHealthRequest(): CheckHealthRequest {
   return {};
 }
@@ -563,6 +947,28 @@ export const PaymentServiceService = {
     responseSerialize: (value: GetPaymentResponse): Buffer => Buffer.from(GetPaymentResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): GetPaymentResponse => GetPaymentResponse.decode(value),
   },
+  getPaymentForSettlement: {
+    path: "/incident.payment.v1.PaymentService/GetPaymentForSettlement" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: GetPaymentForSettlementRequest): Buffer =>
+      Buffer.from(GetPaymentForSettlementRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): GetPaymentForSettlementRequest => GetPaymentForSettlementRequest.decode(value),
+    responseSerialize: (value: GetPaymentForSettlementResponse): Buffer =>
+      Buffer.from(GetPaymentForSettlementResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): GetPaymentForSettlementResponse =>
+      GetPaymentForSettlementResponse.decode(value),
+  },
+  refundPayment: {
+    path: "/incident.payment.v1.PaymentService/RefundPayment" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: RefundPaymentRequest): Buffer => Buffer.from(RefundPaymentRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): RefundPaymentRequest => RefundPaymentRequest.decode(value),
+    responseSerialize: (value: RefundPaymentResponse): Buffer =>
+      Buffer.from(RefundPaymentResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): RefundPaymentResponse => RefundPaymentResponse.decode(value),
+  },
   checkHealth: {
     path: "/incident.payment.v1.PaymentService/CheckHealth" as const,
     requestStream: false as const,
@@ -577,6 +983,8 @@ export const PaymentServiceService = {
 export interface PaymentServiceServer extends UntypedServiceImplementation {
   initiatePayment: handleUnaryCall<InitiatePaymentRequest, InitiatePaymentResponse>;
   getPayment: handleUnaryCall<GetPaymentRequest, GetPaymentResponse>;
+  getPaymentForSettlement: handleUnaryCall<GetPaymentForSettlementRequest, GetPaymentForSettlementResponse>;
+  refundPayment: handleUnaryCall<RefundPaymentRequest, RefundPaymentResponse>;
   checkHealth: handleUnaryCall<CheckHealthRequest, CheckHealthResponse>;
 }
 
@@ -610,6 +1018,36 @@ export interface PaymentServiceClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: GetPaymentResponse) => void,
+  ): ClientUnaryCall;
+  getPaymentForSettlement(
+    request: GetPaymentForSettlementRequest,
+    callback: (error: ServiceError | null, response: GetPaymentForSettlementResponse) => void,
+  ): ClientUnaryCall;
+  getPaymentForSettlement(
+    request: GetPaymentForSettlementRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: GetPaymentForSettlementResponse) => void,
+  ): ClientUnaryCall;
+  getPaymentForSettlement(
+    request: GetPaymentForSettlementRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: GetPaymentForSettlementResponse) => void,
+  ): ClientUnaryCall;
+  refundPayment(
+    request: RefundPaymentRequest,
+    callback: (error: ServiceError | null, response: RefundPaymentResponse) => void,
+  ): ClientUnaryCall;
+  refundPayment(
+    request: RefundPaymentRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: RefundPaymentResponse) => void,
+  ): ClientUnaryCall;
+  refundPayment(
+    request: RefundPaymentRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: RefundPaymentResponse) => void,
   ): ClientUnaryCall;
   checkHealth(
     request: CheckHealthRequest,

@@ -50,7 +50,7 @@ func run(logger *slog.Logger) error {
 		return errors.New("initialize Identity client")
 	}
 	defer connection.Close()
-	implementation := orders.NewServer(orders.NewService(repository), identityv1.NewIdentityServiceClient(connection), cfg.RPCTimeout, logger)
+	implementation := orders.NewServer(orders.NewService(repository), identityv1.NewIdentityServiceClient(connection), cfg.RPCTimeout, logger, cfg.ServiceToken)
 	server := grpc.NewServer(grpc.UnaryInterceptor(implementation.Intercept), grpc.MaxRecvMsgSize(4096), grpc.MaxHeaderListSize(8192), grpc.MaxConcurrentStreams(64))
 	orderv1.RegisterOrderServiceServer(server, implementation)
 	listener, err := net.Listen("tcp", cfg.Address)

@@ -9,22 +9,44 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimSettlementEvent = `-- name: ClaimSettlementEvent :exec
+INSERT INTO orders.inbox (event_id, order_id, payload_hash) VALUES ($1, $2, $3) ON CONFLICT (event_id) DO NOTHING
+`
+
+type ClaimSettlementEventParams struct {
+	EventID     uuid.UUID
+	OrderID     uuid.UUID
+	PayloadHash string
+}
+
+func (q *Queries) ClaimSettlementEvent(ctx context.Context, arg ClaimSettlementEventParams) error {
+	_, err := q.db.Exec(ctx, claimSettlementEvent, arg.EventID, arg.OrderID, arg.PayloadHash)
+	return err
+}
+
 const createOrder = `-- name: CreateOrder :one
-INSERT INTO orders.orders (owner_id, sku, quantity)
-VALUES ($1, $2, $3)
-RETURNING id, owner_id, sku, quantity, status, created_at
+INSERT INTO orders.orders (owner_id, sku, quantity, recipient_email)
+VALUES ($1, $2, $3, $4)
+RETURNING id, owner_id, sku, quantity, status, created_at, recipient_email, payment_id, settled_at
 `
 
 type CreateOrderParams struct {
-	OwnerID  uuid.UUID
-	Sku      string
-	Quantity int32
+	OwnerID        uuid.UUID
+	Sku            string
+	Quantity       int32
+	RecipientEmail pgtype.Text
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (OrdersOrder, error) {
-	row := q.db.QueryRow(ctx, createOrder, arg.OwnerID, arg.Sku, arg.Quantity)
+	row := q.db.QueryRow(ctx, createOrder,
+		arg.OwnerID,
+		arg.Sku,
+		arg.Quantity,
+		arg.RecipientEmail,
+	)
 	var i OrdersOrder
 	err := row.Scan(
 		&i.ID,
@@ -33,12 +55,15 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.Quantity,
 		&i.Status,
 		&i.CreatedAt,
+		&i.RecipientEmail,
+		&i.PaymentID,
+		&i.SettledAt,
 	)
 	return i, err
 }
 
 const getOwnedOrder = `-- name: GetOwnedOrder :one
-SELECT id, owner_id, sku, quantity, status, created_at
+SELECT id, owner_id, sku, quantity, status, created_at, recipient_email, payment_id, settled_at
 FROM orders.orders
 WHERE id = $1 AND owner_id = $2
 `
@@ -58,6 +83,136 @@ func (q *Queries) GetOwnedOrder(ctx context.Context, arg GetOwnedOrderParams) (O
 		&i.Quantity,
 		&i.Status,
 		&i.CreatedAt,
+		&i.RecipientEmail,
+		&i.PaymentID,
+		&i.SettledAt,
 	)
 	return i, err
+}
+
+const getProcessedEvent = `-- name: GetProcessedEvent :one
+SELECT order_id, payload_hash, processed_at FROM orders.inbox WHERE event_id = $1
+`
+
+type GetProcessedEventRow struct {
+	OrderID     uuid.UUID
+	PayloadHash string
+	ProcessedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetProcessedEvent(ctx context.Context, eventID uuid.UUID) (GetProcessedEventRow, error) {
+	row := q.db.QueryRow(ctx, getProcessedEvent, eventID)
+	var i GetProcessedEventRow
+	err := row.Scan(&i.OrderID, &i.PayloadHash, &i.ProcessedAt)
+	return i, err
+}
+
+const getSettlementOrder = `-- name: GetSettlementOrder :one
+SELECT id, owner_id, sku, quantity, status, created_at, recipient_email, payment_id, settled_at FROM orders.orders WHERE id = $1
+`
+
+func (q *Queries) GetSettlementOrder(ctx context.Context, id uuid.UUID) (OrdersOrder, error) {
+	row := q.db.QueryRow(ctx, getSettlementOrder, id)
+	var i OrdersOrder
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Sku,
+		&i.Quantity,
+		&i.Status,
+		&i.CreatedAt,
+		&i.RecipientEmail,
+		&i.PaymentID,
+		&i.SettledAt,
+	)
+	return i, err
+}
+
+const insertFinalEvent = `-- name: InsertFinalEvent :exec
+INSERT INTO orders.outbox (id, order_id, event_type, payload) VALUES ($1, $2, $3, $4)
+`
+
+type InsertFinalEventParams struct {
+	ID        uuid.UUID
+	OrderID   uuid.UUID
+	EventType string
+	Payload   []byte
+}
+
+func (q *Queries) InsertFinalEvent(ctx context.Context, arg InsertFinalEventParams) error {
+	_, err := q.db.Exec(ctx, insertFinalEvent,
+		arg.ID,
+		arg.OrderID,
+		arg.EventType,
+		arg.Payload,
+	)
+	return err
+}
+
+const lockSettlementOrder = `-- name: LockSettlementOrder :one
+SELECT id, owner_id, sku, quantity, status, created_at, recipient_email, payment_id, settled_at FROM orders.orders WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockSettlementOrder(ctx context.Context, id uuid.UUID) (OrdersOrder, error) {
+	row := q.db.QueryRow(ctx, lockSettlementOrder, id)
+	var i OrdersOrder
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Sku,
+		&i.Quantity,
+		&i.Status,
+		&i.CreatedAt,
+		&i.RecipientEmail,
+		&i.PaymentID,
+		&i.SettledAt,
+	)
+	return i, err
+}
+
+const markSettlementProcessed = `-- name: MarkSettlementProcessed :exec
+UPDATE orders.inbox SET processed_at = statement_timestamp() WHERE event_id = $1 AND processed_at IS NULL
+`
+
+func (q *Queries) MarkSettlementProcessed(ctx context.Context, eventID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markSettlementProcessed, eventID)
+	return err
+}
+
+const settleOrder = `-- name: SettleOrder :one
+UPDATE orders.orders SET status = $2, payment_id = $3, settled_at = statement_timestamp()
+WHERE id = $1 AND status = 'pending'
+RETURNING id, owner_id, sku, quantity, status, created_at, recipient_email, payment_id, settled_at
+`
+
+type SettleOrderParams struct {
+	ID        uuid.UUID
+	Status    string
+	PaymentID pgtype.UUID
+}
+
+func (q *Queries) SettleOrder(ctx context.Context, arg SettleOrderParams) (OrdersOrder, error) {
+	row := q.db.QueryRow(ctx, settleOrder, arg.ID, arg.Status, arg.PaymentID)
+	var i OrdersOrder
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Sku,
+		&i.Quantity,
+		&i.Status,
+		&i.CreatedAt,
+		&i.RecipientEmail,
+		&i.PaymentID,
+		&i.SettledAt,
+	)
+	return i, err
+}
+
+const wakeOrderPublisher = `-- name: WakeOrderPublisher :exec
+SELECT pg_notify('order_outbox', '')
+`
+
+func (q *Queries) WakeOrderPublisher(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, wakeOrderPublisher)
+	return err
 }

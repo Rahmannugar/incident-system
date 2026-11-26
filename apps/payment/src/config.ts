@@ -40,11 +40,13 @@ export function paymentConfig() {
   if (secret.length < 32) throw new ConfigurationError('INCIDENT_SYSTEM_PAYMENT_WEBHOOK_SECRET must contain at least 32 characters');
   const serviceToken = required('INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN');
   if (serviceToken.length < 32) throw new ConfigurationError('INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN must contain at least 32 characters');
+  const settlementToken = required('INCIDENT_SYSTEM_PAYMENT_SERVICE_TOKEN');
+  if (settlementToken.length < 32) throw new ConfigurationError('INCIDENT_SYSTEM_PAYMENT_SERVICE_TOKEN must contain at least 32 characters');
   const currency = process.env.INCIDENT_SYSTEM_PAYMENT_CURRENCY ?? 'USD';
   if (!/^[A-Z]{3}$/.test(currency)) throw new ConfigurationError('INCIDENT_SYSTEM_PAYMENT_CURRENCY must be a three-letter currency code');
   const rpcTimeout = process.env.INCIDENT_SYSTEM_PAYMENT_RPC_TIMEOUT ?? '3s';
   const match = /^(\d+)(ms|s)$/.exec(rpcTimeout);
   const timeoutMs = match ? Number(match[1]) * (match[2] === 's' ? 1000 : 1) : 0;
   if (timeoutMs < 1 || timeoutMs > 30000) throw new ConfigurationError('INCIDENT_SYSTEM_PAYMENT_RPC_TIMEOUT must be between 1ms and 30s');
-  return {database: paymentDatabaseConfig(), grpcAddress: address('INCIDENT_SYSTEM_PAYMENT_GRPC_ADDRESS', '127.0.0.1:50054'), httpAddress: address('INCIDENT_SYSTEM_PAYMENT_HTTP_ADDRESS', '127.0.0.1:3001'), orderAddress: address('INCIDENT_SYSTEM_PAYMENT_ORDER_ADDRESS', '127.0.0.1:50052'), inventoryAddress: address('INCIDENT_SYSTEM_PAYMENT_INVENTORY_ADDRESS', '127.0.0.1:50053'), serviceToken, secret, currency, timeoutMs, unitAmount: integer('INCIDENT_SYSTEM_PAYMENT_UNIT_AMOUNT_MINOR', 1000, 1, 1000000000)};
+  return {database: paymentDatabaseConfig(), grpcAddress: address('INCIDENT_SYSTEM_PAYMENT_GRPC_ADDRESS', '127.0.0.1:50054'), httpAddress: address('INCIDENT_SYSTEM_PAYMENT_HTTP_ADDRESS', '127.0.0.1:3001'), orderAddress: address('INCIDENT_SYSTEM_PAYMENT_ORDER_ADDRESS', '127.0.0.1:50052'), inventoryAddress: address('INCIDENT_SYSTEM_PAYMENT_INVENTORY_ADDRESS', '127.0.0.1:50053'), serviceToken, settlementToken, secret, currency, timeoutMs, unitAmount: integer('INCIDENT_SYSTEM_PAYMENT_UNIT_AMOUNT_MINOR', 1000, 1, 1000000000)};
 }

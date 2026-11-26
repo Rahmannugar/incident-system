@@ -33,7 +33,7 @@ func (a *API) orderReservation(w http.ResponseWriter, r *http.Request, create bo
 		return
 	}
 	order := owned.GetOrder()
-	if order == nil || order.Status != "pending" {
+	if order == nil || create && order.Status != "pending" {
 		reject(w, 409, "order_not_pending", "The order is not pending")
 		return
 	}

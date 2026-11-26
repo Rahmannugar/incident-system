@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	OrderService_CreateOrder_FullMethodName = "/incident.order.v1.OrderService/CreateOrder"
-	OrderService_GetOrder_FullMethodName    = "/incident.order.v1.OrderService/GetOrder"
-	OrderService_CheckHealth_FullMethodName = "/incident.order.v1.OrderService/CheckHealth"
+	OrderService_CreateOrder_FullMethodName            = "/incident.order.v1.OrderService/CreateOrder"
+	OrderService_GetOrder_FullMethodName               = "/incident.order.v1.OrderService/GetOrder"
+	OrderService_PrepareOrderSettlement_FullMethodName = "/incident.order.v1.OrderService/PrepareOrderSettlement"
+	OrderService_FinalizeOrder_FullMethodName          = "/incident.order.v1.OrderService/FinalizeOrder"
+	OrderService_CheckHealth_FullMethodName            = "/incident.order.v1.OrderService/CheckHealth"
 )
 
 // OrderServiceClient is the client API for OrderService service.
@@ -30,6 +32,8 @@ const (
 type OrderServiceClient interface {
 	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error)
 	GetOrder(ctx context.Context, in *GetOrderRequest, opts ...grpc.CallOption) (*GetOrderResponse, error)
+	PrepareOrderSettlement(ctx context.Context, in *PrepareOrderSettlementRequest, opts ...grpc.CallOption) (*PrepareOrderSettlementResponse, error)
+	FinalizeOrder(ctx context.Context, in *FinalizeOrderRequest, opts ...grpc.CallOption) (*FinalizeOrderResponse, error)
 	CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error)
 }
 
@@ -61,6 +65,26 @@ func (c *orderServiceClient) GetOrder(ctx context.Context, in *GetOrderRequest, 
 	return out, nil
 }
 
+func (c *orderServiceClient) PrepareOrderSettlement(ctx context.Context, in *PrepareOrderSettlementRequest, opts ...grpc.CallOption) (*PrepareOrderSettlementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PrepareOrderSettlementResponse)
+	err := c.cc.Invoke(ctx, OrderService_PrepareOrderSettlement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderServiceClient) FinalizeOrder(ctx context.Context, in *FinalizeOrderRequest, opts ...grpc.CallOption) (*FinalizeOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinalizeOrderResponse)
+	err := c.cc.Invoke(ctx, OrderService_FinalizeOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *orderServiceClient) CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CheckHealthResponse)
@@ -77,6 +101,8 @@ func (c *orderServiceClient) CheckHealth(ctx context.Context, in *CheckHealthReq
 type OrderServiceServer interface {
 	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error)
 	GetOrder(context.Context, *GetOrderRequest) (*GetOrderResponse, error)
+	PrepareOrderSettlement(context.Context, *PrepareOrderSettlementRequest) (*PrepareOrderSettlementResponse, error)
+	FinalizeOrder(context.Context, *FinalizeOrderRequest) (*FinalizeOrderResponse, error)
 	CheckHealth(context.Context, *CheckHealthRequest) (*CheckHealthResponse, error)
 	mustEmbedUnimplementedOrderServiceServer()
 }
@@ -93,6 +119,12 @@ func (UnimplementedOrderServiceServer) CreateOrder(context.Context, *CreateOrder
 }
 func (UnimplementedOrderServiceServer) GetOrder(context.Context, *GetOrderRequest) (*GetOrderResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetOrder not implemented")
+}
+func (UnimplementedOrderServiceServer) PrepareOrderSettlement(context.Context, *PrepareOrderSettlementRequest) (*PrepareOrderSettlementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PrepareOrderSettlement not implemented")
+}
+func (UnimplementedOrderServiceServer) FinalizeOrder(context.Context, *FinalizeOrderRequest) (*FinalizeOrderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FinalizeOrder not implemented")
 }
 func (UnimplementedOrderServiceServer) CheckHealth(context.Context, *CheckHealthRequest) (*CheckHealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CheckHealth not implemented")
@@ -154,6 +186,42 @@ func _OrderService_GetOrder_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OrderService_PrepareOrderSettlement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrepareOrderSettlementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).PrepareOrderSettlement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OrderService_PrepareOrderSettlement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).PrepareOrderSettlement(ctx, req.(*PrepareOrderSettlementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OrderService_FinalizeOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalizeOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).FinalizeOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OrderService_FinalizeOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).FinalizeOrder(ctx, req.(*FinalizeOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _OrderService_CheckHealth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CheckHealthRequest)
 	if err := dec(in); err != nil {
@@ -186,6 +254,14 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrder",
 			Handler:    _OrderService_GetOrder_Handler,
+		},
+		{
+			MethodName: "PrepareOrderSettlement",
+			Handler:    _OrderService_PrepareOrderSettlement_Handler,
+		},
+		{
+			MethodName: "FinalizeOrder",
+			Handler:    _OrderService_FinalizeOrder_Handler,
 		},
 		{
 			MethodName: "CheckHealth",

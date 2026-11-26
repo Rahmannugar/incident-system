@@ -10,10 +10,13 @@ import (
 )
 
 type OrdersOrder struct {
-	ID        uuid.UUID
-	OwnerID   uuid.UUID
-	Sku       string
-	Quantity  int32
-	Status    string
-	CreatedAt pgtype.Timestamptz
+	ID             uuid.UUID
+	OwnerID        uuid.UUID
+	Sku            string
+	Quantity       int32
+	Status         string
+	CreatedAt      pgtype.Timestamptz
+	RecipientEmail pgtype.Text
+	PaymentID      pgtype.UUID
+	SettledAt      pgtype.Timestamptz
 }

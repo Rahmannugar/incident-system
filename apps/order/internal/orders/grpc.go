@@ -3,6 +3,7 @@ package orders
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"regexp"
@@ -20,6 +21,7 @@ import (
 )
 
 type ownerKey struct{}
+type emailKey struct{}
 type requestIDKey struct{}
 
 var requestIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -27,47 +29,51 @@ var tokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 
 type Server struct {
 	orderv1.UnimplementedOrderServiceServer
+	token    string
 	service  *Service
 	identity identityv1.IdentityServiceClient
 	timeout  time.Duration
 	logger   *slog.Logger
 }
 
-func NewServer(service *Service, identity identityv1.IdentityServiceClient, timeout time.Duration, logger *slog.Logger) *Server {
-	return &Server{service: service, identity: identity, timeout: timeout, logger: logger}
+func NewServer(service *Service, identity identityv1.IdentityServiceClient, timeout time.Duration, logger *slog.Logger, token string) *Server {
+	return &Server{token: token, service: service, identity: identity, timeout: timeout, logger: logger}
 }
 
-func (s *Server) authenticate(ctx context.Context, requestID string) (uuid.UUID, error) {
+func (s *Server) authenticate(ctx context.Context, requestID string) (uuid.UUID, string, error) {
 	incoming, _ := metadata.FromIncomingContext(ctx)
 	values := incoming.Get("authorization")
 	if len(values) != 1 {
-		return uuid.Nil, status.Error(codes.Unauthenticated, "A valid session is required")
+		return uuid.Nil, "", status.Error(codes.Unauthenticated, "A valid session is required")
 	}
 	parts := strings.Fields(values[0])
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || !tokenPattern.MatchString(parts[1]) {
-		return uuid.Nil, status.Error(codes.Unauthenticated, "A valid session is required")
+		return uuid.Nil, "", status.Error(codes.Unauthenticated, "A valid session is required")
 	}
 	outgoing := metadata.NewOutgoingContext(ctx, metadata.Pairs("x-request-id", requestID))
 	session, err := s.identity.GetSession(outgoing, &identityv1.GetSessionRequest{Token: parts[1]})
 	if err != nil {
 		code := status.Code(err)
 		if code == codes.Unauthenticated {
-			return uuid.Nil, status.Error(codes.Unauthenticated, "A valid session is required")
+			return uuid.Nil, "", status.Error(codes.Unauthenticated, "A valid session is required")
 		}
 		s.logger.Warn("dependency.failed", "service", "order", "dependency", "identity", "request_id", requestID, "code", code.String())
 		if code == codes.DeadlineExceeded || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return uuid.Nil, status.Error(codes.DeadlineExceeded, "Identity service timed out")
+			return uuid.Nil, "", status.Error(codes.DeadlineExceeded, "Identity service timed out")
 		}
-		return uuid.Nil, status.Error(codes.Unavailable, "Identity service is unavailable")
+		return uuid.Nil, "", status.Error(codes.Unavailable, "Identity service is unavailable")
 	}
 	if session == nil || session.User == nil {
-		return uuid.Nil, status.Error(codes.Unavailable, "Identity returned an invalid session")
+		return uuid.Nil, "", status.Error(codes.Unavailable, "Identity returned an invalid session")
 	}
 	owner, err := uuid.Parse(session.User.Id)
 	if err != nil || owner == uuid.Nil {
-		return uuid.Nil, status.Error(codes.Unavailable, "Identity returned an invalid session")
+		return uuid.Nil, "", status.Error(codes.Unavailable, "Identity returned an invalid session")
 	}
-	return owner, nil
+	if !validContact(session.User.Email) {
+		return uuid.Nil, "", status.Error(codes.Unavailable, "Identity returned an invalid contact")
+	}
+	return owner, session.User.Email, nil
 }
 
 func (s *Server) Intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
@@ -90,12 +96,18 @@ func (s *Server) Intercept(ctx context.Context, req interface{}, info *grpc.Unar
 		}
 		s.logger.Log(ctx, level, "rpc.completed", "service", "order", "operation", info.FullMethod, "request_id", requestID, "code", code.String(), "duration_ms", time.Since(start).Milliseconds())
 	}()
-	if info.FullMethod != orderv1.OrderService_CheckHealth_FullMethodName {
-		owner, authErr := s.authenticate(ctx, requestID)
+	if info.FullMethod == orderv1.OrderService_PrepareOrderSettlement_FullMethodName || info.FullMethod == orderv1.OrderService_FinalizeOrder_FullMethodName {
+		values := incoming.Get("x-service-token")
+		if len(values) != 1 || subtle.ConstantTimeCompare([]byte(values[0]), []byte(s.token)) != 1 {
+			return nil, status.Error(codes.Unauthenticated, "Internal service authentication required")
+		}
+	} else if info.FullMethod != orderv1.OrderService_CheckHealth_FullMethodName {
+		owner, email, authErr := s.authenticate(ctx, requestID)
 		if authErr != nil {
 			return nil, authErr
 		}
 		ctx = context.WithValue(ctx, ownerKey{}, owner)
+		ctx = context.WithValue(ctx, emailKey{}, email)
 	}
 	return handler(ctx, req)
 }
@@ -104,8 +116,12 @@ func rpcError(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, ErrUnauthorized):
 		return status.Error(codes.Unauthenticated, ErrUnauthorized.Error())
-	case errors.Is(err, ErrSKU), errors.Is(err, ErrQuantity), errors.Is(err, ErrID):
+	case errors.Is(err, ErrSKU), errors.Is(err, ErrQuantity), errors.Is(err, ErrID), errors.Is(err, ErrSettlement):
 		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, ErrEventConflict):
+		return status.Error(codes.AlreadyExists, err.Error())
+	case errors.Is(err, ErrTransition):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, ErrNotFound):
 		return status.Error(codes.NotFound, ErrNotFound.Error())
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
@@ -126,7 +142,8 @@ func wire(order Order) *orderv1.Order {
 }
 
 func (s *Server) CreateOrder(ctx context.Context, request *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-	order, err := s.service.Create(ctx, owner(ctx), request.Sku, request.Quantity)
+	email, _ := ctx.Value(emailKey{}).(string)
+	order, err := s.service.Create(ctx, owner(ctx), email, request.Sku, request.Quantity)
 	if err != nil {
 		return nil, rpcError(ctx, err)
 	}
@@ -152,4 +169,35 @@ func (s *Server) CheckHealth(ctx context.Context, _ *orderv1.CheckHealthRequest)
 		return nil, status.Error(codes.Unavailable, "Identity service is unavailable")
 	}
 	return &orderv1.CheckHealthResponse{Healthy: true}, nil
+}
+
+func (s *Server) PrepareOrderSettlement(ctx context.Context, request *orderv1.PrepareOrderSettlementRequest) (*orderv1.PrepareOrderSettlementResponse, error) {
+	id, e1 := uuid.Parse(request.Id)
+	event, e2 := uuid.Parse(request.EventId)
+	if e1 != nil || e2 != nil {
+		return nil, rpcError(ctx, ErrSettlement)
+	}
+	order, err := s.service.Prepare(ctx, Settlement{OrderID: id, EventID: event, PayloadHash: request.PayloadHash})
+	if err != nil {
+		return nil, rpcError(ctx, err)
+	}
+	paymentID := ""
+	if order.PaymentID != uuid.Nil {
+		paymentID = order.PaymentID.String()
+	}
+	return &orderv1.PrepareOrderSettlementResponse{Order: wire(order), PaymentId: paymentID}, nil
+}
+func (s *Server) FinalizeOrder(ctx context.Context, request *orderv1.FinalizeOrderRequest) (*orderv1.FinalizeOrderResponse, error) {
+	id, e1 := uuid.Parse(request.Id)
+	event, e2 := uuid.Parse(request.EventId)
+	payment, e3 := uuid.Parse(request.PaymentId)
+	if e1 != nil || e2 != nil || e3 != nil {
+		return nil, rpcError(ctx, ErrSettlement)
+	}
+	requestID, _ := ctx.Value(requestIDKey{}).(string)
+	order, err := s.service.Finalize(ctx, Settlement{OrderID: id, EventID: event, PaymentID: payment, PayloadHash: request.PayloadHash, Status: request.Status, RequestID: requestID})
+	if err != nil {
+		return nil, rpcError(ctx, err)
+	}
+	return &orderv1.FinalizeOrderResponse{Order: wire(order)}, nil
 }
