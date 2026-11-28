@@ -1,3 +1,6 @@
+import {recordRPC} from '../../../../packages/telemetry/ts/metrics.ts';
+import {failureFields, businessFields} from '../../../../packages/telemetry/ts/logging.ts';
+import {inSpan, SpanKind, spanError} from '../../../../packages/telemetry/ts/telemetry.ts';
 import {status, type handleUnaryCall} from '@grpc/grpc-js';
 import type {Pool} from 'pg';
 import {randomUUID} from 'node:crypto';
@@ -25,8 +28,11 @@ function unary<Request, Response>(operation: string, work: (request: Request, ac
         throw new AuthFailure('cancelled', 'Request cancelled');
       }
     };
-    void (async () => {
+    const parents = call.metadata.get('traceparent');
+    const parent = parents.length === 1 && typeof parents[0] === 'string' ? parents[0] : null;
+    void inSpan(operation, SpanKind.SERVER, parent, async () => {
       let code = status.OK;
+      let failure: Record<string, string> = {};
       try {
         active();
         callback(null, await work(call.request, active));
@@ -44,11 +50,13 @@ function unary<Request, Response>(operation: string, work: (request: Request, ac
         } else {
           code = status.INTERNAL;
         }
+        failure = error instanceof AuthFailure ? {error_type: 'rejected', error_code: error.code, error_message: message} : failureFields(error);
         callback({code, message});
       } finally {
-        log(code === status.INTERNAL ? 'error' : code === status.UNAVAILABLE ? 'warn' : 'info', 'rpc.completed', {operation, request_id: requestId, code, duration_ms: Math.round(performance.now() - start)});
+        recordRPC(operation, code, performance.now() - start); spanError(code !== status.OK);
+        log(code === status.INTERNAL ? 'error' : code === status.OK ? 'info' : 'warn', code === status.OK ? 'rpc.succeeded' : 'rpc.failed', {message: code === status.OK ? `${operation} succeeded` : `${operation} failed: ${failure.error_message}`, operation, request_id: requestId, ...businessFields(call.request), ...failure, code: status[code], duration_ms: Math.round(performance.now() - start)});
       }
-    })();
+    });
   };
 }
 

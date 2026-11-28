@@ -30,24 +30,11 @@ func Load() (Config, error) {
 	if len(c.ServiceToken) < 32 {
 		return c, fmt.Errorf("INCIDENT_SYSTEM_ORDER_SERVICE_TOKEN must contain at least 32 characters")
 	}
-	password := os.Getenv("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD")
-	if password == "" {
-		return c, fmt.Errorf("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD is required")
+	var err error
+	c.DatabaseURL, err = DatabaseURL()
+	if err != nil {
+		return c, err
 	}
-	rawPort := value("INCIDENT_SYSTEM_DATABASE_PORT", "55432")
-	port, err := strconv.Atoi(rawPort)
-	if err != nil || port < 1 || port > 65535 {
-		return c, fmt.Errorf("INCIDENT_SYSTEM_DATABASE_PORT must be between 1 and 65535")
-	}
-	mode := value("INCIDENT_SYSTEM_DATABASE_SSL_MODE", "disable")
-	if mode != "disable" && mode != "require" {
-		return c, fmt.Errorf("INCIDENT_SYSTEM_DATABASE_SSL_MODE must be disable or require")
-	}
-	u := &url.URL{Scheme: "postgres", Host: net.JoinHostPort(value("INCIDENT_SYSTEM_DATABASE_HOST", "127.0.0.1"), strconv.Itoa(port)), Path: "/" + value("INCIDENT_SYSTEM_ORDER_DATABASE_NAME", "incident_system_order"), User: url.UserPassword(value("INCIDENT_SYSTEM_ORDER_DATABASE_USER", "incident_system_order"), password)}
-	query := u.Query()
-	query.Set("sslmode", mode)
-	u.RawQuery = query.Encode()
-	c.DatabaseURL = u.String()
 	for name, address := range map[string]string{"INCIDENT_SYSTEM_ORDER_GRPC_ADDRESS": c.Address, "INCIDENT_SYSTEM_ORDER_IDENTITY_ADDRESS": c.IdentityAddress} {
 		_, p, e := net.SplitHostPort(address)
 		n, pe := strconv.Atoi(p)
@@ -60,4 +47,26 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("INCIDENT_SYSTEM_ORDER_RPC_TIMEOUT must be between 1ms and 30s")
 	}
 	return c, nil
+}
+
+func DatabaseURL() (string, error) {
+	password := os.Getenv("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD")
+	if password == "" {
+		return "", fmt.Errorf("INCIDENT_SYSTEM_ORDER_DATABASE_PASSWORD is required")
+	}
+	rawPort := value("INCIDENT_SYSTEM_DATABASE_PORT", "55432")
+	port, err := strconv.Atoi(rawPort)
+	if err != nil || port < 1 || port > 65535 {
+		return "", fmt.Errorf("INCIDENT_SYSTEM_DATABASE_PORT must be between 1 and 65535")
+	}
+	mode := value("INCIDENT_SYSTEM_DATABASE_SSL_MODE", "disable")
+	if mode != "disable" && mode != "require" {
+		return "", fmt.Errorf("INCIDENT_SYSTEM_DATABASE_SSL_MODE must be disable or require")
+	}
+	u := &url.URL{Scheme: "postgres", Host: net.JoinHostPort(value("INCIDENT_SYSTEM_DATABASE_HOST", "127.0.0.1"), strconv.Itoa(port)), Path: "/" + value("INCIDENT_SYSTEM_ORDER_DATABASE_NAME", "incident_system_order"), User: url.UserPassword(value("INCIDENT_SYSTEM_ORDER_DATABASE_USER", "incident_system_order"), password)}
+	query := u.Query()
+	query.Set("sslmode", mode)
+	u.RawQuery = query.Encode()
+	return u.String(), nil
+
 }

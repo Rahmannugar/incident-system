@@ -14,12 +14,18 @@ import (
 	"github.com/Rahmannugar/incident-system/apps/order/internal/orders"
 	identityv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/identity/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func run(logger *slog.Logger) error {
+	shutdown, telemetryErr := telemetry.Init("order", logger)
+	if telemetryErr != nil {
+		return telemetryErr
+	}
+	defer shutdown()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -45,13 +51,13 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return errors.New("Order database schema is unavailable")
 	}
-	connection, err := grpc.NewClient(cfg.IdentityAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	connection, err := grpc.NewClient(cfg.IdentityAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(telemetry.ClientInterceptor))
 	if err != nil {
 		return errors.New("initialize Identity client")
 	}
 	defer connection.Close()
 	implementation := orders.NewServer(orders.NewService(repository), identityv1.NewIdentityServiceClient(connection), cfg.RPCTimeout, logger, cfg.ServiceToken)
-	server := grpc.NewServer(grpc.UnaryInterceptor(implementation.Intercept), grpc.MaxRecvMsgSize(4096), grpc.MaxHeaderListSize(8192), grpc.MaxConcurrentStreams(64))
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(telemetry.ServerInterceptor, implementation.Intercept), grpc.MaxRecvMsgSize(4096), grpc.MaxHeaderListSize(8192), grpc.MaxConcurrentStreams(64))
 	orderv1.RegisterOrderServiceServer(server, implementation)
 	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
@@ -80,7 +86,7 @@ func run(logger *slog.Logger) error {
 	return nil
 }
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slog.New(telemetry.Handler{Inner: slog.NewJSONHandler(os.Stdout, nil)})
 	if err := run(logger); err != nil {
 		logger.Error("order.failed", "service", "order", "reason", err.Error())
 		os.Exit(1)

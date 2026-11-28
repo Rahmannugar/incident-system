@@ -7,6 +7,14 @@
     "node": ">=22 <23"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/context-async-hooks": "3.1.1",
+    "@opentelemetry/core": "3.1.1",
+    "@opentelemetry/exporter-metrics-otlp-http": "0.301.2",
+    "@opentelemetry/exporter-trace-otlp-http": "0.301.2",
+    "@opentelemetry/resources": "3.1.1",
+    "@opentelemetry/sdk-metrics": "3.1.1",
+    "@opentelemetry/sdk-trace": "3.1.1",
     "@pgtyped/runtime": "2.4.2",
     "pg": "8.23.1"
   },
@@ -28,6 +36,7 @@
   },
   "workspaces": [
     "apps/identity",
-    "apps/payment"
+    "apps/payment",
+    "apps/notification"
   ]
 }

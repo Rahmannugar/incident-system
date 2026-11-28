@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"log/slog"
 	"net"
 	"regexp"
@@ -16,6 +17,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+type requestIDKey struct{}
 
 type Server struct {
 	inventoryv1.UnimplementedInventoryServiceServer
@@ -40,8 +43,9 @@ func (s *Server) Intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
+	ctx = context.WithValue(ctx, requestIDKey{}, requestID)
 	defer func() {
-		s.logger.Info("rpc.completed", "service", "inventory", "operation", info.FullMethod, "request_id", requestID, "code", status.Code(err).String(), "duration_ms", time.Since(start).Milliseconds())
+		telemetry.LogRPC(ctx, s.logger, "inventory", info.FullMethod, requestID, err, start, telemetry.RPCFields(req)...)
 	}()
 	if info.FullMethod != inventoryv1.InventoryService_CheckHealth_FullMethodName {
 		// Customer bearer tokens cannot authorise stock commitment; only an internal service credential can.
@@ -85,14 +89,17 @@ func failure(ctx context.Context, err error) error {
 	return status.Error(codes.Unavailable, "Inventory storage is unavailable")
 }
 func (s *Server) reservation(ctx context.Context, op, sku, id string, quantity int32) (*inventoryv1.Reservation, error) {
+	requestID, _ := ctx.Value(requestIDKey{}).(string)
 	result, err := s.store.Execute(ctx, op, sku, id, quantity, 0)
 	if err != nil {
+		s.logger.WarnContext(ctx, "inventory.operation_failed", "service", "inventory", "message", "Inventory reservation operation failed", "operation", op, "order_id", telemetry.LogID(id), "request_id", requestID, "error_message", status.Convert(failure(ctx, err)).Message(), "code", status.Code(failure(ctx, err)).String())
 		return nil, failure(ctx, err)
 	}
 	r := result.Reservation
 	if r == nil {
 		return nil, status.Error(codes.Internal, "Inventory returned an invalid reservation")
 	}
+	s.logger.InfoContext(ctx, "inventory.reservation", "service", "inventory", "message", "Inventory reservation operation succeeded", "operation", op, "request_id", requestID, "order_id", r.OrderID, "sku", r.SKU, "quantity", r.Quantity, "reservation_state", r.State)
 	return &inventoryv1.Reservation{OrderId: r.OrderID, Sku: r.SKU, Quantity: r.Quantity, State: r.State, ExpiresAtUnixMs: r.ExpiresAt}, nil
 }
 func (s *Server) Reserve(ctx context.Context, r *inventoryv1.ReserveRequest) (*inventoryv1.ReserveResponse, error) {
@@ -126,12 +133,14 @@ func (s *Server) Release(ctx context.Context, r *inventoryv1.ReleaseRequest) (*i
 func (s *Server) CheckStock(ctx context.Context, r *inventoryv1.CheckStockRequest) (*inventoryv1.CheckStockResponse, error) {
 	result, err := s.store.Execute(ctx, "stock", r.Sku, "", 0, 0)
 	if err != nil {
+		s.logger.WarnContext(ctx, "inventory.operation_failed", "service", "inventory", "message", "Inventory operation failed", "error_message", status.Convert(failure(ctx, err)).Message(), "code", status.Code(failure(ctx, err)).String())
 		return nil, failure(ctx, err)
 	}
 	return &inventoryv1.CheckStockResponse{Sku: r.Sku, Remaining: result.Remaining, Available: result.Available}, nil
 }
 func (s *Server) CheckHealth(ctx context.Context, _ *inventoryv1.CheckHealthRequest) (*inventoryv1.CheckHealthResponse, error) {
 	if err := s.store.Health(ctx); err != nil {
+		s.logger.WarnContext(ctx, "inventory.operation_failed", "service", "inventory", "message", "Inventory operation failed", "error_message", status.Convert(failure(ctx, err)).Message(), "code", status.Code(failure(ctx, err)).String())
 		return nil, failure(ctx, err)
 	}
 	return &inventoryv1.CheckHealthResponse{Healthy: true}, nil

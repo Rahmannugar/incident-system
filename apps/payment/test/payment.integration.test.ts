@@ -30,7 +30,7 @@ test('pending payment, signed provider webhook and atomic durable outcome/outbox
   function stockCommand(remove = false) {
     const args = ['dist/scripts/services.js', 'inventory', remove ? 'reset' : 'seed', '--sku', sku, '--stock', '10'];
     if (remove) args.push('--remove');
-    execFileSync(process.execPath, args, {env: serviceEnvironment('inventory', inventorySettings), stdio: 'pipe'});
+    execFileSync(process.execPath, args, {env: serviceEnvironment('inventory', {...inventorySettings, INCIDENT_SYSTEM_TELEMETRY_SOURCE: 'integration'}), stdio: 'pipe'});
   }
   try {
     stockCommand();

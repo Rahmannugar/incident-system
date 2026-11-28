@@ -24,7 +24,7 @@ test('Gateway reserves owned pending orders through real Inventory gRPC and host
   function stockCommand(operation: 'seed' | 'reset', stock: number, remove = false) {
     const args = ['dist/scripts/services.js', 'inventory', operation, '--sku', sku, '--stock', String(stock)];
     if (remove) args.push('--remove');
-    execFileSync(process.execPath, args, {env: serviceEnvironment('inventory', settings), stdio: 'pipe'});
+    execFileSync(process.execPath, args, {env: serviceEnvironment('inventory', {...settings, INCIDENT_SYSTEM_TELEMETRY_SOURCE: 'integration'}), stdio: 'pipe'});
   }
   try {
     assert.equal(serviceEnvironment('gateway').INCIDENT_SYSTEM_INVENTORY_REDIS_URL, undefined);

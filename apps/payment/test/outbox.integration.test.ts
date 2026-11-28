@@ -120,7 +120,7 @@ test('PostgreSQL outbox leases, batch acceptance and worker wakeup/poll recovery
 
     await reset();
     const settings = {INCIDENT_SYSTEM_QSTASH_MODE: 'hosted', INCIDENT_SYSTEM_PAYMENT_DATABASE_NAME: fixtureDatabase, INCIDENT_SYSTEM_QSTASH_TOKEN: 'fixture-publisher-token', INCIDENT_SYSTEM_QSTASH_URL: base, INCIDENT_SYSTEM_CALLBACK_BASE_URL: base};
-    const env = serviceEnvironment('payment', settings, 'publisher');
+    const env = serviceEnvironment('payment', {...settings, INCIDENT_SYSTEM_TELEMETRY_SOURCE: 'integration'}, 'publisher');
     assert.equal(env.INCIDENT_SYSTEM_PAYMENT_WEBHOOK_SECRET, undefined);
     assert.equal(env.INCIDENT_SYSTEM_INVENTORY_SERVICE_TOKEN, undefined);
     const child = spawn(process.execPath, ['dist/scripts/services.js', 'payment', 'publish'], {env});

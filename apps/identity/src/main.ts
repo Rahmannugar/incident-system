@@ -1,3 +1,4 @@
+import {tracing} from '../../../packages/telemetry/ts/telemetry.ts';
 import {Server, ServerCredentials} from '@grpc/grpc-js';
 import {randomBytes} from 'node:crypto';
 import {Pool} from 'pg';
@@ -10,6 +11,7 @@ import {hashPassword} from './auth/password.ts';
 import {log} from './logger.ts';
 
 async function main() {
+  const shutdownTracing = tracing('identity');
   const config = identityConfig();
   const pool = new Pool(config.database);
   const server = new Server({'grpc.max_receive_message_length': 16384, 'grpc.max_concurrent_streams': 64});
@@ -37,7 +39,7 @@ async function main() {
       await new Promise<void>(resolve => server.tryShutdown(() => resolve()));
       clearTimeout(timeout);
       await pool.end();
-      log('info', 'identity.stopped');
+      log('info', 'identity.stopped'); await shutdownTracing();
     })().catch(() => {
       log('error', 'identity.shutdown_failed');
       process.exitCode = 1;

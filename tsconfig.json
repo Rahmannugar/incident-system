@@ -23,6 +23,8 @@
     "packages/contracts/gen/ts/**/*.ts",
     "apps/payment/**/*.ts",
     "packages/qstash/**/*.ts",
-    "apps/gateway/test/**/*.ts"
+    "apps/gateway/test/**/*.ts",
+    "apps/notification/**/*.ts",
+    "packages/telemetry/ts/**/*.ts"
   ]
 }

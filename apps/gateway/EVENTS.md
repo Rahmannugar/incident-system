@@ -6,7 +6,8 @@ Accept a signed version 1 Payment outcome and complete its order transition.
 The destination is `INCIDENT_SYSTEM_CALLBACK_BASE_URL` plus `/events/payment`.
 QStash authentication verifies HS256, the current or next signing key, issuer,
 exact destination, expiry, not-before and SHA-256 of the raw body before JSON
-parsing. Local mode uses the official development keys; hosted keys stay separate.
+parsing. Optional trace context is resumed from the verified body, not unsigned
+delivery headers. Local mode uses the official development keys; hosted keys stay separate.
 Bodies are limited to 32 KiB with at most 16 deliveries executing concurrently.
 
 Gateway checks the event against Payment's stored outcome and asks Order to

@@ -16,6 +16,7 @@ import (
 	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
 	paymentv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/payment/v1"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -80,8 +81,20 @@ func New(client identityv1.IdentityServiceClient, orders orderv1.OrderServiceCli
 		}
 		w.Header().Set("X-Request-ID", requestID)
 		w.Header().Set("Cache-Control", "no-store")
-		ctx := metadata.AppendToOutgoingContext(r.Context(), "x-request-id", requestID)
-		mux.ServeHTTP(w, r.WithContext(ctx))
+		ctx, span := telemetry.Start(telemetry.Parent(r.Context(), r.Header.Get("traceparent")), "http.request", telemetry.ServerKind())
+		capture := &telemetry.ResponseWriter{ResponseWriter: w}
+		request := r.WithContext(ctx)
+		started := time.Now()
+		defer func() {
+			telemetry.RecordHTTP(ctx, request.Pattern, capture.Status, time.Since(started))
+			telemetry.FinishHTTP(span, request.Pattern, capture.Status)
+		}()
+		if parent := telemetry.Traceparent(ctx); parent != "" {
+			w.Header().Set("Traceparent", parent)
+		}
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-request-id", requestID)
+		request = request.WithContext(ctx)
+		mux.ServeHTTP(capture, request)
 	})
 }
 
@@ -212,7 +225,7 @@ func (a *API) rpcFailure(w http.ResponseWriter, r *http.Request, operation strin
 	} else if code >= 500 {
 		level = slog.LevelError
 	}
-	a.logger.Log(r.Context(), level, "request.failed", "service", "gateway", "operation", operation, "request_id", requestID, "status", code, "code", name)
+	a.logger.Log(r.Context(), level, "request.failed", "message", "Gateway could not complete the request", "dependency", dependency, "order_id", telemetry.LogID(r.PathValue("id")), "error_type", "upstream", "service", "gateway", "operation", operation, "request_id", requestID, "status", code, "code", name)
 	reject(w, code, name, message)
 }
 

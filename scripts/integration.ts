@@ -13,11 +13,11 @@ export interface Running {
   exited: Promise<{code: number | null; signal: NodeJS.Signals | null}>;
 }
 
-export async function start(service: ServiceName, env: NodeJS.ProcessEnv, children: Running[]): Promise<{process: Running; address: string; httpAddress?: string}> {
+export async function start(service: ServiceName, env: NodeJS.ProcessEnv, children: Running[], role: 'server' | 'publisher' = 'server'): Promise<{process: Running; address: string; httpAddress?: string}> {
   const settings = service === 'identity'
     ? {INCIDENT_SYSTEM_IDENTITY_AUTH_CONCURRENCY: '4', INCIDENT_SYSTEM_IDENTITY_SESSION_TTL_SECONDS: '604800', ...env}
     : {INCIDENT_SYSTEM_GATEWAY_RPC_TIMEOUT: '3s', INCIDENT_SYSTEM_ORDER_RPC_TIMEOUT: '3s', ...env};
-  const child = spawn(process.execPath, ['dist/scripts/services.js', service], {env: serviceEnvironment(service, settings)});
+  const child = spawn(process.execPath, ['dist/scripts/services.js', service, ...(role === 'publisher' ? ['publish'] : [])], {env: serviceEnvironment(service, {...settings, INCIDENT_SYSTEM_TELEMETRY_SOURCE: 'integration'}, role)});
   const exited = new Promise<{code: number | null; signal: NodeJS.Signals | null}>(resolve => {
     child.once('exit', (code, signal) => resolve({code, signal}));
     child.once('error', () => resolve({code: 1, signal: null}));
@@ -38,10 +38,13 @@ export async function start(service: ServiceName, env: NodeJS.ProcessEnv, childr
         let parsed: unknown;
         try { parsed = JSON.parse(line); } catch { continue; }
         const record = object(parsed);
+        if (role === 'publisher' && (record.msg === 'outbox.started' || record.event === 'outbox.started')) {
+          clearTimeout(timer); resolve({process: running, address: ''});
+        }
         if (service === 'payment' && record.event === 'payment.started' && typeof record.port === 'number' && typeof record.http_port === 'number') {
           clearTimeout(timer); resolve({process: running, address: `127.0.0.1:${record.port}`, httpAddress: `127.0.0.1:${record.http_port}`});
         }
-        if (service === 'identity' && record.event === 'identity.started' && typeof record.port === 'number') {
+        if ((service === 'identity' || service === 'notification') && record.event === `${service}.started` && typeof record.port === 'number') {
           clearTimeout(timer); resolve({process: running, address: `127.0.0.1:${record.port}`});
         }
         if (service !== 'identity' && record.msg === `${service}.started` && typeof record.address === 'string') {

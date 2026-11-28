@@ -1,0 +1,11 @@
+{
+  "name": "@incident-system/notification",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pgtyped/runtime": "2.4.2",
+    "@upstash/qstash": "2.13.0",
+    "pg": "8.23.1"
+  }
+}

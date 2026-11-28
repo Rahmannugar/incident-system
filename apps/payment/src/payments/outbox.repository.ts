@@ -1,9 +1,14 @@
 import type {Pool} from 'pg';
-import {claimOutboxBatch, exhaustExpiredClaims, finishOutboxBatch} from './outbox.queries.js';
+import {claimOutboxBatch, exhaustExpiredClaims, finishOutboxBatch, outboxMetrics} from './outbox.queries.js';
 
 export type PublishResult = {id: string; message_id: string | null; error_code: string | null};
 export class OutboxRepository {
   constructor(private readonly pool: Pool) {}
+  async metrics() {
+    const [row] = await outboxMetrics.run(undefined, this.pool);
+    if (!row) throw new Error('Outbox snapshot unavailable');
+    return {pending: Number(row.pending), exhausted: Number(row.exhausted), oldest_seconds: row.oldest_seconds ?? 0};
+  }
   async claim(token: string, size = 20) {
     if (!Number.isInteger(size) || size < 1 || size > 20) throw new Error('Outbox batch size must be between 1 and 20');
     // Even an interrupted final attempt becomes inspectable after its lease expires.

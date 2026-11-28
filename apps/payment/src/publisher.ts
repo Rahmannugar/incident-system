@@ -1,3 +1,5 @@
+import {observeOutbox} from '../../../packages/telemetry/ts/metrics.ts';
+import {tracing} from '../../../packages/telemetry/ts/telemetry.ts';
 import {Client, Pool} from 'pg';
 import {paymentDatabaseConfig, ConfigurationError} from './config.ts';
 import {OutboxRepository} from './payments/outbox.repository.ts';
@@ -11,10 +13,13 @@ function publisherConfig(): PublisherConfig {
   return {...connection, destination: `${callback.origin}/events/payment`};
 }
 async function main() {
+  const shutdownTracing = tracing('payment');
   const config = publisherConfig();
   const database = paymentDatabaseConfig();
   const pool = new Pool({...database, max: 2});
-  const publisher = new OutboxPublisher(new OutboxRepository(pool), config);
+  const repository = new OutboxRepository(pool);
+  const publisher = new OutboxPublisher(repository, config);
+  observeOutbox(() => repository.metrics());
   const controller = new AbortController();
   const stop = () => controller.abort();
   process.on('SIGINT', stop); process.on('SIGTERM', stop);
@@ -52,8 +57,8 @@ async function main() {
     }
   } finally {
     await listener?.end().catch(() => {});
+    log('info', 'outbox.stopped'); await shutdownTracing();
     await pool.end();
-    log('info', 'outbox.stopped');
   }
 }
 void main().catch(error => {log('error', 'outbox.start_failed', {reason: error instanceof ConfigurationError || error instanceof QStashConfigurationError ? error.message : 'initialization_failed'}); process.exitCode = 1;});

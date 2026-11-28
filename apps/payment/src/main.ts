@@ -1,3 +1,4 @@
+import {tracing} from '../../../packages/telemetry/ts/telemetry.ts';
 import {Server, ServerCredentials, credentials} from '@grpc/grpc-js';
 import {Pool} from 'pg';
 import {PaymentServiceService} from '../../../packages/contracts/gen/ts/incident/payment/v1/payment_service.js';
@@ -11,6 +12,7 @@ import {providerServer} from './payments/provider.http.ts';
 import {log} from './logger.ts';
 
 async function main() {
+  const shutdownTracing = tracing('payment');
   const config = paymentConfig();
   const pool = new Pool(config.database);
   const orders = new OrderServiceClient(config.orderAddress, credentials.createInsecure());
@@ -38,7 +40,7 @@ async function main() {
     void (async () => {
       const timeout = setTimeout(() => {server.forceShutdown(); http.closeAllConnections();}, 5000);
       await Promise.all([new Promise<void>(resolve => server.tryShutdown(() => resolve())), new Promise<void>(resolve => http.close(() => resolve()))]);
-      clearTimeout(timeout); orders.close(); inventory.close(); await pool.end(); log('info', 'payment.stopped');
+      clearTimeout(timeout); orders.close(); inventory.close(); await pool.end(); log('info', 'payment.stopped'); await shutdownTracing();
     })().catch(() => {log('error', 'payment.shutdown_failed'); process.exitCode = 1;});
   };
   process.on('SIGINT', stop); process.on('SIGTERM', stop);

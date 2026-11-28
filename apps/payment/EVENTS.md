@@ -9,6 +9,7 @@ that finalizes the attempt. The row ID and payload ID identify the same event.
 | `type` | `payment.succeeded` or `payment.failed` |
 | `version` | `1` |
 | `occurred_at` | UTC timestamp of the persisted transition |
+| `traceparent` | Optional W3C v00 context captured in the signed event body |
 | `request_id` | Correlation ID stored when the attempt was initiated |
 | `data.payment_id` | Payment attempt UUID |
 | `data.order_id` | Order UUID |

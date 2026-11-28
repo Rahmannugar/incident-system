@@ -1,3 +1,6 @@
+import {recordHTTP} from '../../../../packages/telemetry/ts/metrics.ts';
+import {failureFields} from '../../../../packages/telemetry/ts/logging.ts';
+import {inSpan, SpanKind, spanError} from '../../../../packages/telemetry/ts/telemetry.ts';
 import {createHash, randomUUID} from 'node:crypto';
 import {createServer, type IncomingMessage, type ServerResponse} from 'node:http';
 import {PaymentRepository} from './payments.repository.ts';
@@ -39,13 +42,18 @@ function parseEvent(body: Buffer): ProviderEvent {
 export function providerServer(repository: PaymentRepository, secret: string, timeoutMs: number) {
   let inFlight = 0;
   const server = createServer({maxHeaderSize: 8192, requestTimeout: 5000, headersTimeout: 5000}, (request, response) => {
+    const received = Date.now();
+    const operation = request.method === 'POST' && request.url === '/webhooks/provider' ? 'POST /webhooks/provider' : 'unmatched';
+    response.once('finish', () => recordHTTP(operation, response.statusCode, Date.now() - received));
     if (request.method !== 'POST' || request.url !== '/webhooks/provider') {reply(response, 404, {error: {code: 'not_found', message: 'Route not found'}}); return;}
     if (inFlight >= 32) {reply(response, 429, {error: {code: 'busy', message: 'Webhook processing is busy'}}); return;}
     inFlight++;
     const requestId = typeof request.headers['x-request-id'] === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(request.headers['x-request-id']) ? request.headers['x-request-id'] : randomUUID();
     const start = Date.now();
-    void (async () => {
+    void inSpan('payment.provider_webhook', SpanKind.SERVER, null, async () => {
       let code = 200;
+      let failure: Record<string, string> = {};
+      let acceptedEvent: ProviderEvent | undefined;
       try {
         if (request.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') throw new HTTPFailure(415, 'unsupported_media_type', 'Content-Type must be application/json');
         const body = await readBody(request);
@@ -54,18 +62,20 @@ export function providerServer(repository: PaymentRepository, secret: string, ti
         // Authenticate exact bytes before parsing. Event IDs persist replay protection beyond the time window.
         if (typeof timestamp !== 'string' || typeof signature !== 'string' || !verifyProviderBody(body, timestamp, signature, secret)) throw new HTTPFailure(401, 'invalid_signature', 'Invalid provider signature');
         const event = parseEvent(body);
+        acceptedEvent = event;
         const active = () => {if (request.aborted || response.destroyed || Date.now() - start >= timeoutMs) throw new PaymentFailure('cancelled', 'Webhook processing timed out');};
         const result = await repository.receive(event, createHash('sha256').update(body).digest('hex'), active);
-        log(result.reason === 'terminal_conflict' ? 'warn' : 'info', 'provider.outcome', {request_id: requestId, payment_id: event.payment_id, provider_event_id: event.event_id, applied: result.applied, reason: result.reason});
+        log(result.reason === 'terminal_conflict' ? 'warn' : 'info', 'provider.outcome', {message: result.applied ? 'Payment outcome committed with its outbox event' : result.reason === 'terminal_conflict' ? 'Conflicting provider outcome ignored; the original payment outcome is unchanged' : 'Provider outcome already recorded; no payment change applied', request_id: requestId, payment_id: event.payment_id, provider_event_id: event.event_id, outcome: event.outcome, applied: result.applied, outcome_reason: result.reason});
         reply(response, 200, {accepted: true, ...result});
       } catch (error) {
         let name = 'internal_error', message = 'Webhook processing failed';
         code = 500;
         if (error instanceof HTTPFailure) {code = error.status; name = error.code; message = error.message;}
         if (error instanceof PaymentFailure) {code = error.code === 'not_found' ? 404 : error.code === 'event_conflict' ? 409 : error.code === 'cancelled' ? 504 : 400; name = error.code; message = error.message;}
+        failure = error instanceof HTTPFailure || error instanceof PaymentFailure ? {error_type: 'rejected', error_code: name, error_message: message} : failureFields(error);
         reply(response, code, {error: {code: name, message}});
-      } finally {inFlight--; log(code >= 500 ? 'error' : 'info', 'webhook.completed', {request_id: requestId, status: code, duration_ms: Date.now() - start});}
-    })();
+      } finally {spanError(code >= 400); inFlight--; log(code >= 500 ? 'error' : code >= 400 ? 'warn' : 'info', code >= 400 ? 'webhook.failed' : 'webhook.accepted', {message: code >= 400 ? `Payment provider webhook failed: ${failure.error_message}` : 'Payment provider webhook accepted', operation: 'payment.provider_webhook', request_id: requestId, ...(acceptedEvent ? {payment_id: acceptedEvent.payment_id, provider_event_id: acceptedEvent.event_id, outcome: acceptedEvent.outcome} : {}), ...failure, status: code, duration_ms: Date.now() - start});}
+    });
   });
   server.maxConnections = 64;
   server.setTimeout(5000, socket => socket.destroy());

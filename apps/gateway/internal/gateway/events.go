@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -26,12 +27,13 @@ type EventConfig struct {
 	OrderToken, PaymentToken string
 }
 type PaymentEvent struct {
-	ID         string    `json:"id"`
-	Type       string    `json:"type"`
-	Version    int       `json:"version"`
-	OccurredAt time.Time `json:"occurred_at"`
-	RequestID  string    `json:"request_id"`
-	Data       struct {
+	Traceparent string    `json:"traceparent,omitempty"`
+	ID          string    `json:"id"`
+	Type        string    `json:"type"`
+	Version     int       `json:"version"`
+	OccurredAt  time.Time `json:"occurred_at"`
+	RequestID   string    `json:"request_id"`
+	Data        struct {
 		PaymentID            string    `json:"payment_id"`
 		OrderID              string    `json:"order_id"`
 		AmountMinor          int64     `json:"amount_minor"`
@@ -81,7 +83,7 @@ func parsePaymentEvent(body []byte) (PaymentEvent, bool) {
 	if decoder.Decode(&extra) != io.EOF {
 		return event, false
 	}
-	valid := eventID(event.ID) && eventID(event.Data.OrderID) && eventID(event.Data.PaymentID) && event.Version == 1 && (event.Type == "payment.succeeded" || event.Type == "payment.failed") && !event.OccurredAt.IsZero() && validRequestID(event.RequestID) && event.Data.AmountMinor >= 1 && event.Data.AmountMinor <= 1e12 && currencyPattern.MatchString(event.Data.Currency) && !event.Data.ReservationExpiresAt.IsZero() && event.Data.Late != nil
+	valid := (event.Traceparent == "" || telemetry.ValidParent(event.Traceparent)) && eventID(event.ID) && eventID(event.Data.OrderID) && eventID(event.Data.PaymentID) && event.Version == 1 && (event.Type == "payment.succeeded" || event.Type == "payment.failed") && !event.OccurredAt.IsZero() && validRequestID(event.RequestID) && event.Data.AmountMinor >= 1 && event.Data.AmountMinor <= 1e12 && currencyPattern.MatchString(event.Data.Currency) && !event.Data.ReservationExpiresAt.IsZero() && event.Data.Late != nil
 	return event, valid
 }
 func (a *API) paymentEvent(w http.ResponseWriter, r *http.Request) {
@@ -125,10 +127,13 @@ func (a *API) paymentEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash := sha256.Sum256(raw)
-	ctx, cancel := a.callContext(r)
+	deliveryContext, span := telemetry.Resume(r.Context(), event.Traceparent, "payment.process", telemetry.ConsumerKind())
+	defer span.End()
+	ctx, cancel := a.callContext(r.WithContext(deliveryContext))
 	defer cancel()
 	err = a.settlements.Process(ctx, event, hex.EncodeToString(hash[:]))
 	if err != nil {
+		telemetry.MarkError(span)
 		code := 503
 		name := "delivery_incomplete"
 		switch status.Code(err) {
@@ -136,10 +141,10 @@ func (a *API) paymentEvent(w http.ResponseWriter, r *http.Request) {
 			code = 409
 			name = "event_conflict"
 		}
-		a.logger.Warn("payment.delivery_failed", "service", "gateway", "event_id", event.ID, "order_id", event.Data.OrderID, "request_id", event.RequestID, "code", status.Code(err).String())
+		a.logger.WarnContext(ctx, "payment.delivery_failed", "message", "Payment event settlement failed; delivery will be retried unless the event conflicts", "payment_id", event.Data.PaymentID, "service", "gateway", "event_id", event.ID, "order_id", event.Data.OrderID, "request_id", event.RequestID, "code", status.Code(err).String())
 		reject(w, code, name, "Payment event could not be finalized")
 		return
 	}
-	a.logger.Info("payment.delivered", "service", "gateway", "event_id", event.ID, "order_id", event.Data.OrderID, "request_id", event.RequestID)
+	a.logger.InfoContext(ctx, "payment.delivered", "message", "Payment event settled; inventory acknowledgement and final order state are durable", "payment_id", event.Data.PaymentID, "service", "gateway", "event_id", event.ID, "order_id", event.Data.OrderID, "request_id", event.RequestID)
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -37,3 +37,9 @@ SET published_at = CASE WHEN r.message_id IS NOT NULL THEN now() ELSE NULL END,
 FROM results r
 WHERE o.id = r.id AND o.claim_token = :claimToken! AND o.published_at IS NULL
 RETURNING o.id, o.published_at, o.exhausted_at;
+
+/* @name OutboxMetrics */
+SELECT count(*) FILTER (WHERE exhausted_at IS NULL)::bigint AS pending,
+       count(*) FILTER (WHERE exhausted_at IS NOT NULL)::bigint AS exhausted,
+       coalesce(extract(epoch FROM (now() - min(created_at) FILTER (WHERE exhausted_at IS NULL))), 0)::double precision AS oldest_seconds
+FROM payments.outbox WHERE published_at IS NULL;

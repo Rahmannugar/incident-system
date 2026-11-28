@@ -1,0 +1,7 @@
+{
+  "srcDir": "apps/notification/src/notifications",
+  "transforms": [{"mode": "sql", "include": "notifications.sql", "emitTemplate": "{{dir}}/{{name}}.queries.ts"}],
+  "failOnError": true,
+  "maxWorkerThreads": 1,
+  "db": {"ssl": false}
+}

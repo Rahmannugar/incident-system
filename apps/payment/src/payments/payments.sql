@@ -2,8 +2,8 @@
 SELECT * FROM payments.attempts WHERE order_id = :orderId!;
 
 /* @name InsertPayment */
-INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id)
-VALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!)
+INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id, traceparent)
+VALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!, :traceparent)
 ON CONFLICT (order_id) DO NOTHING
 RETURNING *;
 

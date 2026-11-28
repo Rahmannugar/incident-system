@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/identity/package.json ./apps/identity/package.json
 COPY apps/payment/package.json ./apps/payment/package.json
+COPY apps/notification/package.json ./apps/notification/package.json
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY --from=tools /tools/tern ./bin/tern
 COPY --from=tools /tools/task /usr/local/bin/task

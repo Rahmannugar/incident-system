@@ -1,0 +1,218 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "operational-evidence",
+      "folder": "Incident System",
+      "interval": "10s",
+      "rules": [
+        {
+          "uid": "incident-system-service-errors",
+          "title": "Sustained service errors",
+          "condition": "B",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 60,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "(100 * sum by (service_name, source) (rate(incident_system_operations_total{source=~\"application|integration\",operation!~\"GET /health/(live|ready)|check_health|.*/CheckHealth\",outcome=\"server_error\"}[1m]) and on(job, instance) (incident_system_process_heartbeat_seconds{process_role=\"server\",source=~\"application|integration\"} > time() - 20)) / sum by (service_name, source) (rate(incident_system_operations_total{source=~\"application|integration\",operation!~\"GET /health/(live|ready)|check_health|.*/CheckHealth\"}[1m]) and on(job, instance) (incident_system_process_heartbeat_seconds{process_role=\"server\",source=~\"application|integration\"} > time() - 20))) and on(service_name, source) (sum by (service_name, source) (increase(incident_system_operations_total{source=~\"application|integration\",operation!~\"GET /health/(live|ready)|check_health|.*/CheckHealth\"}[1m]) and on(job, instance) (incident_system_process_heartbeat_seconds{process_role=\"server\",source=~\"application|integration\"} > time() - 20)) >= 5)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "B",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "params": [
+                        20
+                      ],
+                      "type": "gt"
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "B"
+                      ]
+                    },
+                    "reducer": {
+                      "params": [],
+                      "type": "last"
+                    },
+                    "type": "query"
+                  }
+                ],
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                },
+                "expression": "A",
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "B",
+                "type": "threshold"
+              }
+            }
+          ],
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "for": "30s",
+          "annotations": {
+            "summary": "{{ $labels.service_name }} has sustained service errors ({{ $labels.source }})",
+            "description": "Server errors exceed 20% of completed non-health operations over one minute, with at least five completed operations, for 30 seconds. Observed error rate: {{ printf \"%.1f\" $values.A.Value }}%. Only processes with a heartbeat in the last 20 seconds are included. These local prototype thresholds are not production tuning."
+          },
+          "labels": {
+            "project": "incident-system",
+            "severity": "warning",
+            "alert_kind": "service_errors"
+          },
+          "isPaused": false,
+          "notification_settings": {
+            "receiver": "empty",
+            "group_by": [
+              "alertname",
+              "service_name",
+              "source"
+            ],
+            "mute_time_intervals": [
+              "incident-system-local-no-notifications"
+            ]
+          }
+        },
+        {
+          "uid": "incident-system-outbox-stalled",
+          "title": "Old pending outbox events",
+          "condition": "B",
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 60,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "prometheus"
+                },
+                "editorMode": "code",
+                "expr": "max by (service_name, source) (\n  incident_system_outbox_oldest_seconds{source=~\"application|integration\",process_role=\"publisher\"}\n  and on(job, instance) (incident_system_outbox_pending{source=~\"application|integration\",process_role=\"publisher\"} > 0)\n  and on(job, instance) (incident_system_outbox_collection_success{source=~\"application|integration\",process_role=\"publisher\"} == 1)\n  and on(job, instance) (incident_system_process_heartbeat_seconds{source=~\"application|integration\",process_role=\"publisher\"} > time() - 20)\n)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "B",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "params": [
+                        60
+                      ],
+                      "type": "gt"
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "B"
+                      ]
+                    },
+                    "reducer": {
+                      "params": [],
+                      "type": "last"
+                    },
+                    "type": "query"
+                  }
+                ],
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "__expr__"
+                },
+                "expression": "A",
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "B",
+                "type": "threshold"
+              }
+            }
+          ],
+          "noDataState": "OK",
+          "execErrState": "Error",
+          "for": "30s",
+          "annotations": {
+            "summary": "{{ $labels.service_name }} has old pending outbox events ({{ $labels.source }})",
+            "description": "The oldest unpublished, non-exhausted event is over 60 seconds old for 30 seconds while backlog is nonzero. Observed oldest age: {{ printf \"%.0f\" $values.A.Value }} seconds. Only successful snapshots from publishers with a heartbeat in the last 20 seconds are included. This does not assert that a published event was processed by its consumer."
+          },
+          "labels": {
+            "project": "incident-system",
+            "severity": "warning",
+            "alert_kind": "outbox_stalled"
+          },
+          "isPaused": false,
+          "notification_settings": {
+            "receiver": "empty",
+            "group_by": [
+              "alertname",
+              "service_name",
+              "source"
+            ],
+            "mute_time_intervals": [
+              "incident-system-local-no-notifications"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "muteTimes": [
+    {
+      "orgId": 1,
+      "name": "incident-system-local-no-notifications",
+      "time_intervals": [
+        {
+          "times": [
+            {
+              "start_time": "00:00",
+              "end_time": "24:00"
+            }
+          ],
+          "location": "UTC"
+        }
+      ]
+    }
+  ]
+}

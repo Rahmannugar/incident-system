@@ -120,3 +120,33 @@ const finishOutboxBatchIR: any = {"usedParamSet":{"results":true,"claimToken":tr
 export const finishOutboxBatch = new PreparedQuery<IFinishOutboxBatchParams,IFinishOutboxBatchResult>(finishOutboxBatchIR);
 
 
+/** 'OutboxMetrics' parameters type */
+export type IOutboxMetricsParams = void;
+
+/** 'OutboxMetrics' return type */
+export interface IOutboxMetricsResult {
+  exhausted: string | null;
+  oldest_seconds: number | null;
+  pending: string | null;
+}
+
+/** 'OutboxMetrics' query type */
+export interface IOutboxMetricsQuery {
+  params: IOutboxMetricsParams;
+  result: IOutboxMetricsResult;
+}
+
+const outboxMetricsIR: any = {"usedParamSet":{},"params":[],"statement":"SELECT count(*) FILTER (WHERE exhausted_at IS NULL)::bigint AS pending,\n       count(*) FILTER (WHERE exhausted_at IS NOT NULL)::bigint AS exhausted,\n       coalesce(extract(epoch FROM (now() - min(created_at) FILTER (WHERE exhausted_at IS NULL))), 0)::double precision AS oldest_seconds\nFROM payments.outbox WHERE published_at IS NULL"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT count(*) FILTER (WHERE exhausted_at IS NULL)::bigint AS pending,
+ *        count(*) FILTER (WHERE exhausted_at IS NOT NULL)::bigint AS exhausted,
+ *        coalesce(extract(epoch FROM (now() - min(created_at) FILTER (WHERE exhausted_at IS NULL))), 0)::double precision AS oldest_seconds
+ * FROM payments.outbox WHERE published_at IS NULL
+ * ```
+ */
+export const outboxMetrics = new PreparedQuery<IOutboxMetricsParams,IOutboxMetricsResult>(outboxMetricsIR);
+
+

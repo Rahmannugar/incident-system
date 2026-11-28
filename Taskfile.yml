@@ -75,6 +75,7 @@ tasks:
       - bin/tern migrate -c apps/identity/tern.conf -m apps/identity/src/auth/migrations
       - bin/tern migrate -c apps/order/tern.conf -m apps/order/internal/orders/migrations
       - bin/tern migrate -c apps/payment/tern.conf -m apps/payment/src/payments/migrations
+      - bin/tern migrate -c apps/notification/tern.conf -m apps/notification/src/notifications/migrations
 
   migrate:database:
     desc: Apply SQL acceptance schema migrations
@@ -89,6 +90,7 @@ tasks:
       - task: generate:database
       - node --experimental-strip-types --env-file-if-exists=.env apps/identity/scripts/generate.ts
       - node --experimental-strip-types --env-file-if-exists=.env apps/payment/scripts/generate.ts
+      - node --experimental-strip-types --env-file-if-exists=.env apps/notification/scripts/generate.ts
       - task: generate:order
 
   generate:order:
@@ -107,6 +109,11 @@ tasks:
     cmds:
       - node node_modules/typescript/bin/tsc --noEmit
 
+  test-order-publisher:
+    desc: Verify Order publisher leases, batch results and response-loss recovery
+    cmds:
+      - go -C apps/order test -tags=integration -count=1 -timeout=45s ./internal/orders
+
   test-inventory:
     desc: Verify reservation concurrency and expiry against configured Upstash Redis
     cmds:
@@ -116,7 +123,7 @@ tasks:
     desc: Compile and run persistence and service integration tests
     cmds:
       - node node_modules/typescript/bin/tsc
-      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js dist/apps/payment/test/payment.integration.test.js dist/apps/payment/test/outbox.integration.test.js dist/apps/payment/test/refund.integration.test.js dist/apps/gateway/test/settlement.integration.test.js
+      - node --env-file-if-exists=.env --test --test-concurrency=1 dist/scripts/database/proof.test.js dist/apps/identity/test/identity.integration.test.js dist/apps/order/test/order.integration.test.js dist/apps/inventory/test/inventory.integration.test.js dist/apps/payment/test/payment.integration.test.js dist/apps/payment/test/outbox.integration.test.js dist/apps/payment/test/refund.integration.test.js dist/apps/gateway/test/settlement.integration.test.js dist/apps/notification/test/notification.integration.test.js dist/packages/telemetry/ts/telemetry.test.js dist/scripts/log-capture.test.js
 
   build:
     desc: Compile TypeScript and Go services
@@ -124,7 +131,34 @@ tasks:
       - node node_modules/typescript/bin/tsc
       - go -C apps/gateway build -o ../../bin/gateway ./cmd/gateway
       - go -C apps/order build -o ../../bin/order ./cmd/order
+      - go -C apps/order build -o ../../bin/order-publisher ./cmd/order-publisher
       - go -C apps/inventory build -o ../../bin/inventory ./cmd/inventory
+
+  observability-up:
+    desc: Start local trace/log collection and Grafana
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/observability.ts prepare
+      - docker compose --profile observability up -d tempo loki otel-collector prometheus grafana
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/observability.ts ready
+
+  observability-stop:
+    desc: Stop observability containers while retaining their data
+    cmds:
+      - docker compose --profile observability stop grafana prometheus otel-collector loki tempo
+
+  check-observability:
+    desc: Verify real order logs, traces and metrics in local storage
+    cmds:
+      - task: build
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/observability.ts ready
+      - INCIDENT_SYSTEM_VERIFY_OBSERVABILITY=true node --env-file-if-exists=.env --test dist/apps/gateway/test/settlement.integration.test.js
+
+  check-alerting:
+    desc: Verify Grafana alerts fire and resolve through the real order flow
+    cmds:
+      - task: build
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/observability.ts ready
+      - INCIDENT_SYSTEM_VERIFY_OBSERVABILITY=true INCIDENT_SYSTEM_VERIFY_ALERTING=true node --env-file-if-exists=.env --test dist/apps/gateway/test/settlement.integration.test.js
 
   qstash-local:
     desc: Start the QStash development container
@@ -142,6 +176,16 @@ tasks:
     cmds:
       - node node_modules/typescript/bin/tsc
       - node --env-file-if-exists=.env --test dist/scripts/qstash.integration.test.js
+
+  run-order-publisher:
+    desc: Publish leased Order outbox batches to Notification through QStash
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts order publish
+
+  run-notification:
+    desc: Run the signed Notification receiver and simulated email provider
+    cmds:
+      - node --experimental-strip-types --env-file-if-exists=.env scripts/services.ts notification
 
   run-payment-publisher:
     desc: Publish leased Payment outbox batches to QStash
@@ -193,6 +237,8 @@ tasks:
     cmds:
       - task: typecheck
       - go -C packages/contracts test ./...
+      - go -C packages/telemetry/go test ./...
+      - go -C packages/telemetry/go vet ./...
       - go -C apps/gateway test ./...
       - go -C apps/gateway vet ./...
       - go -C apps/order test ./...
@@ -212,6 +258,7 @@ tasks:
       - task: build
       - task: check
       - task: test
+      - task: test-order-publisher
       - task: test-inventory
 
   check-database:

@@ -17,31 +17,37 @@ import (
 	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
 	orderv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/order/v1"
 	paymentv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/payment/v1"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func run(logger *slog.Logger) error {
+	shutdown, telemetryErr := telemetry.Init("gateway", logger)
+	if telemetryErr != nil {
+		return telemetryErr
+	}
+	defer shutdown()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-	connection, err := grpc.NewClient(cfg.IdentityAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	connection, err := grpc.NewClient(cfg.IdentityAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(telemetry.ClientInterceptor))
 	if err != nil {
 		return errors.New("initialize identity client")
 	}
 	defer connection.Close()
-	orderConnection, err := grpc.NewClient(cfg.OrderAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	orderConnection, err := grpc.NewClient(cfg.OrderAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(telemetry.ClientInterceptor))
 	if err != nil {
 		return errors.New("initialize order client")
 	}
 	defer orderConnection.Close()
-	inventoryConnection, err := grpc.NewClient(cfg.InventoryAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	inventoryConnection, err := grpc.NewClient(cfg.InventoryAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(telemetry.ClientInterceptor))
 	if err != nil {
 		return errors.New("initialize inventory client")
 	}
 	defer inventoryConnection.Close()
-	paymentConnection, err := grpc.NewClient(cfg.PaymentAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	paymentConnection, err := grpc.NewClient(cfg.PaymentAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(telemetry.ClientInterceptor))
 	if err != nil {
 		return errors.New("initialize payment client")
 	}
@@ -75,7 +81,7 @@ func run(logger *slog.Logger) error {
 }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slog.New(telemetry.Handler{Inner: slog.NewJSONHandler(os.Stdout, nil)})
 	if err := run(logger); err != nil {
 		logger.Error("gateway.failed", "service", "gateway", "reason", err.Error())
 		os.Exit(1)

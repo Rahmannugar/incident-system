@@ -23,6 +23,7 @@ export interface IFindPaymentResult {
   request_id: string;
   reservation_expires_at: Date;
   status: string;
+  traceparent: string | null;
   updated_at: Date;
 }
 
@@ -50,6 +51,7 @@ export interface IInsertPaymentParams {
   orderId: string;
   requestId: string;
   reservationExpiresAt: DateOrString;
+  traceparent?: string | null | void;
 }
 
 /** 'InsertPayment' return type */
@@ -63,6 +65,7 @@ export interface IInsertPaymentResult {
   request_id: string;
   reservation_expires_at: Date;
   status: string;
+  traceparent: string | null;
   updated_at: Date;
 }
 
@@ -72,13 +75,13 @@ export interface IInsertPaymentQuery {
   result: IInsertPaymentResult;
 }
 
-const insertPaymentIR: any = {"usedParamSet":{"orderId":true,"amountMinor":true,"currency":true,"reservationExpiresAt":true,"requestId":true},"params":[{"name":"orderId","required":true,"transform":{"type":"scalar"},"locs":[{"a":109,"b":117}]},{"name":"amountMinor","required":true,"transform":{"type":"scalar"},"locs":[{"a":120,"b":132}]},{"name":"currency","required":true,"transform":{"type":"scalar"},"locs":[{"a":135,"b":144}]},{"name":"reservationExpiresAt","required":true,"transform":{"type":"scalar"},"locs":[{"a":147,"b":168}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":171,"b":181}]}],"statement":"INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id)\nVALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!)\nON CONFLICT (order_id) DO NOTHING\nRETURNING *"};
+const insertPaymentIR: any = {"usedParamSet":{"orderId":true,"amountMinor":true,"currency":true,"reservationExpiresAt":true,"requestId":true,"traceparent":true},"params":[{"name":"orderId","required":true,"transform":{"type":"scalar"},"locs":[{"a":122,"b":130}]},{"name":"amountMinor","required":true,"transform":{"type":"scalar"},"locs":[{"a":133,"b":145}]},{"name":"currency","required":true,"transform":{"type":"scalar"},"locs":[{"a":148,"b":157}]},{"name":"reservationExpiresAt","required":true,"transform":{"type":"scalar"},"locs":[{"a":160,"b":181}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":184,"b":194}]},{"name":"traceparent","required":false,"transform":{"type":"scalar"},"locs":[{"a":197,"b":208}]}],"statement":"INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id, traceparent)\nVALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!, :traceparent)\nON CONFLICT (order_id) DO NOTHING\nRETURNING *"};
 
 /**
  * Query generated from SQL:
  * ```
- * INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id)
- * VALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!)
+ * INSERT INTO payments.attempts (order_id, amount_minor, currency, reservation_expires_at, request_id, traceparent)
+ * VALUES (:orderId!, :amountMinor!, :currency!, :reservationExpiresAt!, :requestId!, :traceparent)
  * ON CONFLICT (order_id) DO NOTHING
  * RETURNING *
  * ```
@@ -102,6 +105,7 @@ export interface ILockPaymentResult {
   request_id: string;
   reservation_expires_at: Date;
   status: string;
+  traceparent: string | null;
   updated_at: Date;
 }
 
@@ -197,6 +201,7 @@ export interface IFinalizePaymentResult {
   request_id: string;
   reservation_expires_at: Date;
   status: string;
+  traceparent: string | null;
   updated_at: Date;
 }
 

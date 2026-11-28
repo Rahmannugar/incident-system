@@ -7,6 +7,7 @@ import (
 	"time"
 
 	orderdb "github.com/Rahmannugar/incident-system/apps/order/internal/orders/generated"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -113,7 +114,9 @@ func (r *Repository) Prepare(ctx context.Context, input Settlement) (Order, erro
 	return fromRow(row), nil
 }
 
-func (r *Repository) Finalize(ctx context.Context, input Settlement) (Order, error) {
+func (r *Repository) Finalize(ctx context.Context, input Settlement) (result Order, failure error) {
+	ctx, span := telemetry.Start(ctx, "order.outcome", telemetry.ProducerKind())
+	defer func() { telemetry.End(span, failure != nil) }()
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return Order{}, err
@@ -160,7 +163,7 @@ func (r *Repository) Finalize(ctx context.Context, input Settlement) (Order, err
 		}
 		id := uuid.New()
 		eventType := "order." + input.Status
-		payload, marshalErr := json.Marshal(finalEvent{ID: id.String(), Type: eventType, Version: 1, OccurredAt: row.SettledAt.Time.UTC().Format(time.RFC3339Nano), RequestID: input.RequestID, Data: finalEventData{OrderID: input.OrderID.String(), PaymentID: input.PaymentID.String(), Status: input.Status, RecipientEmail: recipient}})
+		payload, marshalErr := json.Marshal(finalEvent{Traceparent: telemetry.Traceparent(ctx), ID: id.String(), Type: eventType, Version: 1, OccurredAt: row.SettledAt.Time.UTC().Format(time.RFC3339Nano), RequestID: input.RequestID, Data: finalEventData{OrderID: input.OrderID.String(), PaymentID: input.PaymentID.String(), Status: input.Status, RecipientEmail: recipient}})
 		if marshalErr != nil {
 			return Order{}, marshalErr
 		}
@@ -190,10 +193,11 @@ type finalEventData struct {
 	RecipientEmail *string `json:"recipient_email"`
 }
 type finalEvent struct {
-	ID         string         `json:"id"`
-	Type       string         `json:"type"`
-	Version    int            `json:"version"`
-	OccurredAt string         `json:"occurred_at"`
-	RequestID  string         `json:"request_id"`
-	Data       finalEventData `json:"data"`
+	Traceparent string         `json:"traceparent,omitempty"`
+	ID          string         `json:"id"`
+	Type        string         `json:"type"`
+	Version     int            `json:"version"`
+	OccurredAt  string         `json:"occurred_at"`
+	RequestID   string         `json:"request_id"`
+	Data        finalEventData `json:"data"`
 }

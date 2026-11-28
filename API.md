@@ -1,5 +1,8 @@
 # Incident System API
 
+Gateway accepts optional W3C `traceparent` headers and returns the active context
+in the `Traceparent` response header. Authentication is independent of trace context.
+
 ## Authentication
 
 Create an account and return an opaque bearer session valid for seven days.

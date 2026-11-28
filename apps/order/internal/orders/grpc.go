@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -57,7 +58,7 @@ func (s *Server) authenticate(ctx context.Context, requestID string) (uuid.UUID,
 		if code == codes.Unauthenticated {
 			return uuid.Nil, "", status.Error(codes.Unauthenticated, "A valid session is required")
 		}
-		s.logger.Warn("dependency.failed", "service", "order", "dependency", "identity", "request_id", requestID, "code", code.String())
+		s.logger.WarnContext(ctx, "dependency.failed", "message", "Identity session lookup failed", "service", "order", "dependency", "identity", "request_id", requestID, "code", code.String())
 		if code == codes.DeadlineExceeded || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return uuid.Nil, "", status.Error(codes.DeadlineExceeded, "Identity service timed out")
 		}
@@ -87,14 +88,7 @@ func (s *Server) Intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	defer cancel()
 	ctx = context.WithValue(ctx, requestIDKey{}, requestID)
 	defer func() {
-		code := status.Code(err)
-		level := slog.LevelInfo
-		if code == codes.Internal {
-			level = slog.LevelError
-		} else if code == codes.Unavailable || code == codes.DeadlineExceeded {
-			level = slog.LevelWarn
-		}
-		s.logger.Log(ctx, level, "rpc.completed", "service", "order", "operation", info.FullMethod, "request_id", requestID, "code", code.String(), "duration_ms", time.Since(start).Milliseconds())
+		telemetry.LogRPC(ctx, s.logger, "order", info.FullMethod, requestID, err, start, telemetry.RPCFields(req)...)
 	}()
 	if info.FullMethod == orderv1.OrderService_PrepareOrderSettlement_FullMethodName || info.FullMethod == orderv1.OrderService_FinalizeOrder_FullMethodName {
 		values := incoming.Get("x-service-token")
@@ -112,7 +106,7 @@ func (s *Server) Intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	return handler(ctx, req)
 }
 
-func rpcError(ctx context.Context, err error) error {
+func (s *Server) rpcError(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, ErrUnauthorized):
 		return status.Error(codes.Unauthenticated, ErrUnauthorized.Error())
@@ -130,6 +124,9 @@ func rpcError(ctx context.Context, err error) error {
 		return status.Error(codes.Canceled, "Request cancelled")
 	}
 	var databaseError *pgconn.PgError
+	if errors.As(err, &databaseError) {
+		s.logDatabaseFailure(ctx, err)
+	}
 	if errors.As(err, &databaseError) && databaseError.Code == "57014" {
 		return status.Error(codes.DeadlineExceeded, "Order operation timed out")
 	}
@@ -145,23 +142,24 @@ func (s *Server) CreateOrder(ctx context.Context, request *orderv1.CreateOrderRe
 	email, _ := ctx.Value(emailKey{}).(string)
 	order, err := s.service.Create(ctx, owner(ctx), email, request.Sku, request.Quantity)
 	if err != nil {
-		return nil, rpcError(ctx, err)
+		return nil, s.rpcError(ctx, err)
 	}
 	requestID, _ := ctx.Value(requestIDKey{}).(string)
-	s.logger.Info("order.created", "service", "order", "order_id", order.ID.String(), "request_id", requestID)
+	s.logger.InfoContext(ctx, "order.created", "service", "order", "order_id", order.ID.String(), "status", order.Status, "sku", order.SKU, "quantity", order.Quantity, "request_id", requestID)
 	return &orderv1.CreateOrderResponse{Order: wire(order)}, nil
 }
 
 func (s *Server) GetOrder(ctx context.Context, request *orderv1.GetOrderRequest) (*orderv1.GetOrderResponse, error) {
 	order, err := s.service.Get(ctx, owner(ctx), request.Id)
 	if err != nil {
-		return nil, rpcError(ctx, err)
+		return nil, s.rpcError(ctx, err)
 	}
 	return &orderv1.GetOrderResponse{Order: wire(order)}, nil
 }
 
 func (s *Server) CheckHealth(ctx context.Context, _ *orderv1.CheckHealthRequest) (*orderv1.CheckHealthResponse, error) {
 	if err := s.service.repository.Health(ctx); err != nil {
+		s.logDatabaseFailure(ctx, err)
 		return nil, status.Error(codes.Unavailable, "Order database is unavailable")
 	}
 	health, err := s.identity.CheckHealth(ctx, &identityv1.CheckHealthRequest{})
@@ -175,11 +173,11 @@ func (s *Server) PrepareOrderSettlement(ctx context.Context, request *orderv1.Pr
 	id, e1 := uuid.Parse(request.Id)
 	event, e2 := uuid.Parse(request.EventId)
 	if e1 != nil || e2 != nil {
-		return nil, rpcError(ctx, ErrSettlement)
+		return nil, s.rpcError(ctx, ErrSettlement)
 	}
 	order, err := s.service.Prepare(ctx, Settlement{OrderID: id, EventID: event, PayloadHash: request.PayloadHash})
 	if err != nil {
-		return nil, rpcError(ctx, err)
+		return nil, s.rpcError(ctx, err)
 	}
 	paymentID := ""
 	if order.PaymentID != uuid.Nil {
@@ -192,12 +190,23 @@ func (s *Server) FinalizeOrder(ctx context.Context, request *orderv1.FinalizeOrd
 	event, e2 := uuid.Parse(request.EventId)
 	payment, e3 := uuid.Parse(request.PaymentId)
 	if e1 != nil || e2 != nil || e3 != nil {
-		return nil, rpcError(ctx, ErrSettlement)
+		return nil, s.rpcError(ctx, ErrSettlement)
 	}
 	requestID, _ := ctx.Value(requestIDKey{}).(string)
 	order, err := s.service.Finalize(ctx, Settlement{OrderID: id, EventID: event, PaymentID: payment, PayloadHash: request.PayloadHash, Status: request.Status, RequestID: requestID})
 	if err != nil {
-		return nil, rpcError(ctx, err)
+		return nil, s.rpcError(ctx, err)
 	}
+	s.logger.InfoContext(ctx, "order.finalized", "service", "order", "message", "Order finalized and customer notification queued", "order_id", id.String(), "payment_id", payment.String(), "event_id", event.String(), "status", order.Status, "request_id", requestID)
 	return &orderv1.FinalizeOrderResponse{Order: wire(order)}, nil
+}
+
+func (s *Server) logDatabaseFailure(ctx context.Context, err error) {
+	requestID, _ := ctx.Value(requestIDKey{}).(string)
+	fields := []interface{}{"service", "order", "message", "Order database operation failed", "dependency", "postgresql", "error_type", "database", "request_id", requestID}
+	var databaseError *pgconn.PgError
+	if errors.As(err, &databaseError) {
+		fields = append(fields, "sqlstate", databaseError.Code)
+	}
+	s.logger.ErrorContext(ctx, "database.operation_failed", fields...)
 }

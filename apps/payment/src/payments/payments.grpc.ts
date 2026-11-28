@@ -1,3 +1,6 @@
+import {recordRPC} from '../../../../packages/telemetry/ts/metrics.ts';
+import {failureFields, businessFields} from '../../../../packages/telemetry/ts/logging.ts';
+import {inSpan, SpanKind, spanError} from '../../../../packages/telemetry/ts/telemetry.ts';
 import {status, type handleUnaryCall} from '@grpc/grpc-js';
 import {createHash, randomUUID, timingSafeEqual} from 'node:crypto';
 import type {Pool} from 'pg';
@@ -24,8 +27,11 @@ function unary<Request, Response>(operation: string, timeoutMs: number, work: (i
     const start = Date.now();
     const deadline = Math.min(start + timeoutMs, Number(call.getDeadline()));
     const active = () => {if (call.cancelled || Date.now() >= deadline) throw new PaymentFailure('cancelled', 'Request cancelled');};
-    void (async () => {
+    const parents = call.metadata.get('traceparent');
+    const parent = parents.length === 1 && typeof parents[0] === 'string' ? parents[0] : null;
+    void inSpan(operation, SpanKind.SERVER, parent, async () => {
       let code = status.OK;
+      let failure: Record<string, string> = {};
       try {
         active();
         if (serviceToken && !timingSafeEqual(createHash('sha256').update(authorization).digest(), createHash('sha256').update(serviceToken).digest())) throw new PaymentFailure('unauthorized', 'A valid service credential is required');
@@ -37,9 +43,10 @@ function unary<Request, Response>(operation: string, timeoutMs: number, work: (i
         if (error instanceof PaymentFailure) {code = codes[error.code]; message = error.message;}
         else if (operation === 'check_health') {code = status.UNAVAILABLE; message = 'Payment database is unavailable';}
         else if (typeof error === 'object' && error !== null && 'code' in error && error.code === '57014') {code = status.DEADLINE_EXCEEDED; message = 'Payment operation timed out';}
+        failure = error instanceof PaymentFailure ? {error_type: 'rejected', error_code: error.code, error_message: message} : failureFields(error);
         callback({code, message});
-      } finally {log(code === status.INTERNAL ? 'error' : code === status.UNAVAILABLE ? 'warn' : 'info', 'rpc.completed', {operation, request_id: requestId, code, duration_ms: Date.now() - start});}
-    })();
+      } finally {recordRPC(operation, code, Date.now() - start); spanError(code !== status.OK); log(code === status.INTERNAL ? 'error' : code === status.OK ? 'info' : 'warn', code === status.OK ? 'rpc.succeeded' : 'rpc.failed', {message: code === status.OK ? `${operation} succeeded` : `${operation} failed: ${failure.error_message}`, operation, request_id: requestId, ...businessFields(call.request), ...failure, code: status[code], duration_ms: Date.now() - start});}
+    });
   };
 }
 export function paymentHandlers(service: PaymentService, pool: Pool, timeoutMs: number, serviceToken: string): PaymentServiceServer {

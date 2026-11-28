@@ -15,11 +15,17 @@ import (
 	"github.com/Rahmannugar/incident-system/apps/inventory/internal/config"
 	"github.com/Rahmannugar/incident-system/apps/inventory/internal/inventory"
 	inventoryv1 "github.com/Rahmannugar/incident-system/packages/contracts/gen/go/incident/inventory/v1"
+	"github.com/Rahmannugar/incident-system/packages/telemetry"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
 
 func run(logger *slog.Logger) error {
+	shutdown, telemetryErr := telemetry.Init("inventory", logger)
+	if telemetryErr != nil {
+		return telemetryErr
+	}
+	defer shutdown()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -65,7 +71,7 @@ func run(logger *slog.Logger) error {
 		return errors.New("Inventory Redis is unavailable")
 	}
 	implementation := inventory.NewServer(store, cfg.ServiceToken, cfg.RPCTimeout, logger)
-	server := grpc.NewServer(grpc.UnaryInterceptor(implementation.Intercept), grpc.MaxRecvMsgSize(4096), grpc.MaxHeaderListSize(8192), grpc.MaxConcurrentStreams(64))
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(telemetry.ServerInterceptor, implementation.Intercept), grpc.MaxRecvMsgSize(4096), grpc.MaxHeaderListSize(8192), grpc.MaxConcurrentStreams(64))
 	inventoryv1.RegisterInventoryServiceServer(server, implementation)
 	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
@@ -94,7 +100,7 @@ func run(logger *slog.Logger) error {
 	return nil
 }
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := slog.New(telemetry.Handler{Inner: slog.NewJSONHandler(os.Stdout, nil)})
 	if err := run(logger); err != nil {
 		logger.Error("inventory.failed", "service", "inventory", "reason", err.Error())
 		os.Exit(1)
